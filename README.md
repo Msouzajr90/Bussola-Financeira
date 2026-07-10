@@ -99,9 +99,22 @@ Para um ambiente público na web, como você pediu, a API é o caminho certo.
 
 ---
 
+## Identidade visual e parceria
+
+O site já vem com a identidade da **Engeval** (paleta azul + o logotipo em
+`assets/logo-engeval.png`) e um co-branding de parceria no cabeçalho e no rodapé.
+
+- **Sua marca pessoal:** no `index.html`, procure `Sua Marca` (aparece no cabeçalho,
+  em `class="personal-name"`, e no rodapé). Troque pelo nome da sua marca. Se você tiver
+  um logotipo próprio, coloque o arquivo em `assets/` e substitua o texto `Sua Marca`
+  por uma `<img>` — há um comentário no código marcando o ponto exato.
+- **Logotipo Engeval:** está em `assets/logo-engeval.png`. Para trocar por outra versão
+  (ex.: fundo branco), substitua esse arquivo mantendo o nome.
+
 ## Personalização rápida
 
-- **Nome e textos:** edite o cabeçalho e a seção de boas-vindas no `index.html`.
+- **Textos e boas-vindas:** edite o cabeçalho e a seção de boas-vindas no `index.html`.
 - **Sugestões iniciais:** altere os botões dentro de `<div class="chips">`.
-- **Cores:** ajuste as variáveis no topo do `<style>` (`--green-900`, `--gold`, etc.).
+- **Cores:** ajuste as variáveis no topo do `<style>` (`--blue`, `--blue-deep`,
+  `--cyan`, etc.) — são as cores da Engeval.
 - **Modelo do GPT:** variável `OPENAI_MODEL` na Vercel.
