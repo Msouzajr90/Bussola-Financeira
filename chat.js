@@ -281,6 +281,37 @@ orientação correspondente, fazendo as perguntas necessárias conforme as seç�
 
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
+// ============================================================================
+//  Banco de dados (Upstash Redis) — grava o histórico de cada conversa.
+//  As credenciais são injetadas pela Vercel ao instalar o Upstash pelo
+//  Marketplace (KV_REST_API_URL / KV_REST_API_TOKEN). Se não estiverem
+//  configuradas, o site funciona normalmente, apenas sem gravar o histórico.
+// ============================================================================
+const REDIS_URL   = process.env.KV_REST_API_URL   || process.env.UPSTASH_REDIS_REST_URL;
+const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+
+async function saveConversation(id, messages) {
+  if (!REDIS_URL || !REDIS_TOKEN || !id) return; // gravação é opcional
+  try {
+    const now = Date.now();
+    const record = JSON.stringify({ id, updatedAt: now, messages });
+    // Salva a conversa e a indexa por data (para listar da mais recente).
+    await fetch(`${REDIS_URL}/pipeline`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${REDIS_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify([
+        ['SET', `conv:${id}`, record],
+        ['ZADD', 'idx:conversations', String(now), id],
+      ]),
+    });
+  } catch (e) {
+    console.error('Falha ao gravar conversa:', e);
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método não permitido.' });
@@ -296,6 +327,7 @@ export default async function handler(req, res) {
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     const messages = body && Array.isArray(body.messages) ? body.messages : null;
+    const conversationId = body && typeof body.conversationId === 'string' ? body.conversationId : null;
 
     if (!messages) {
       return res.status(400).json({ error: 'Formato de mensagens inválido.' });
@@ -330,6 +362,10 @@ export default async function handler(req, res) {
 
     const data = await response.json();
     const reply = data?.choices?.[0]?.message?.content?.trim() || '';
+
+    // Grava o histórico completo (perguntas + respostas) no banco de dados.
+    await saveConversation(conversationId, [...clean, { role: 'assistant', content: reply }]);
+
     return res.status(200).json({ reply });
 
   } catch (err) {

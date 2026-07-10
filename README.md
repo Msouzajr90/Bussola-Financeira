@@ -6,14 +6,20 @@ financeira. A interface fica no `index.html` e uma pequena função de servidor
 
 ```
 bussola-financeira/
-├── index.html        → a página que o público vê (o chat)
+├── index.html          → a página que o público vê (o chat)
+├── historico.html      → painel interno (Marco) para ver as conversas — protegido por senha
 ├── api/
-│   └── chat.js       → função de servidor; é AQUI que você cola o seu prompt
+│   ├── chat.js         → função de servidor; guarda a chave e o prompt, grava o histórico
+│   └── history.js      → função de servidor que lê o histórico (protegida por senha)
+├── assets/
+│   └── logo-engeval.png
 ├── package.json
-├── .env.example      → modelo das variáveis de ambiente
+├── .env.example        → modelo das variáveis de ambiente
 ├── .gitignore
 └── README.md
 ```
+
+O prompt "Orientador de Finanças Pessoais" já vem inserido em `api/chat.js`.
 
 ---
 
@@ -27,10 +33,10 @@ bussola-financeira/
 
 ---
 
-## Passo 1 — Cole o seu prompt
+## Passo 1 — O prompt já está pronto
 
-Abra `api/chat.js` e substitua o texto dentro de `SYSTEM_PROMPT` (entre as crases `` ` ``)
-pelo seu prompt pronto. É só esse trecho que muda o comportamento do assistente.
+O prompt já está inserido em `api/chat.js`, dentro de `SYSTEM_PROMPT`. Para ajustá-lo no
+futuro, é só editar o texto entre as crases `` ` ``. Nenhuma outra ação é necessária aqui.
 
 ---
 
@@ -61,9 +67,10 @@ git push -u origin main
 3. Não precisa mudar nada em *Build & Output* (é um site estático + função).
 4. Abra **Environment Variables** e adicione:
 
-   | Name             | Value                        |
-   |------------------|------------------------------|
-   | `OPENAI_API_KEY` | sua chave `sk-...` da OpenAI |
+   | Name             | Value                                             |
+   |------------------|---------------------------------------------------|
+   | `OPENAI_API_KEY` | sua chave `sk-...` da OpenAI                       |
+   | `ADMIN_PASSWORD` | uma senha forte (para abrir a página de histórico)|
 
    (Opcional: `OPENAI_MODEL` = `gpt-4o` para usar um modelo mais capaz.)
 5. Clique em **Deploy** e aguarde alguns segundos.
@@ -73,6 +80,38 @@ Pronto — a Vercel vai te dar um link público, algo como
 
 > Cada vez que você alterar o prompt (ou qualquer arquivo) e enviar para o GitHub,
 > a Vercel republica sozinha.
+
+---
+
+## Passo 4 — Ligue o banco de dados (histórico de conversas)
+
+O histórico é guardado num banco **Upstash Redis**, que se instala pela própria Vercel:
+
+1. No painel do projeto, abra a aba **Storage**.
+2. Clique em **Create Database** → escolha **Upstash → Redis** (Marketplace) e siga o
+   assistente (pode deixar a Vercel gerenciar a conta Upstash para você — tem plano gratuito).
+3. Ao final, conecte o banco ao projeto. A Vercel cria **sozinha** as variáveis
+   `KV_REST_API_URL` e `KV_REST_API_TOKEN` — você não precisa digitá-las.
+4. Clique em **Redeploy** (aba *Deployments* → menu do último deploy → *Redeploy*) para
+   o site passar a enxergar o banco.
+
+A partir daí, toda conversa fica registrada automaticamente.
+
+> Sem esse passo o site continua funcionando normalmente — apenas não grava o histórico.
+
+### Como o Marco acessa o histórico
+
+Abra `https://SEU-SITE.vercel.app/historico.html`, digite a `ADMIN_PASSWORD` e navegue
+pelas conversas (mais recentes primeiro). É uma página interna, sem link visível no site
+público e marcada para não aparecer em buscadores.
+
+### Sobre privacidade (LGPD)
+
+As conversas podem conter informações financeiras das pessoas. Como boa prática: use uma
+senha forte, avise os usuários de que as conversas podem ser registradas para melhoria do
+atendimento, e evite pedir dados pessoais sensíveis (o prompt já orienta a não pedir CPF,
+senhas, número de cartão etc.). Se for oferecer isso ao público, vale ter uma política de
+privacidade simples explicando o uso.
 
 ---
 
@@ -104,10 +143,10 @@ Para um ambiente público na web, como você pediu, a API é o caminho certo.
 O site já vem com a identidade da **Engeval** (paleta azul + o logotipo em
 `assets/logo-engeval.png`) e um co-branding de parceria no cabeçalho e no rodapé.
 
-- **Sua marca pessoal:** no `index.html`, procure `Sua Marca` (aparece no cabeçalho,
-  em `class="personal-name"`, e no rodapé). Troque pelo nome da sua marca. Se você tiver
-  um logotipo próprio, coloque o arquivo em `assets/` e substitua o texto `Sua Marca`
-  por uma `<img>` — há um comentário no código marcando o ponto exato.
+- **Marca pessoal (Marco Souza):** já aparece no cabeçalho (`class="personal-name"`) e no
+  rodapé do `index.html`, em co-branding com a Engeval. Se o Marco tiver um logotipo próprio,
+  coloque o arquivo em `assets/` e substitua o texto `Marco Souza` por uma `<img>` — há um
+  comentário no código marcando o ponto exato.
 - **Logotipo Engeval:** está em `assets/logo-engeval.png`. Para trocar por outra versão
   (ex.: fundo branco), substitua esse arquivo mantendo o nome.
 

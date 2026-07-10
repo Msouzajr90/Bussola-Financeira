@@ -212,9 +212,9 @@
     <!-- CO-BRANDING: marca pessoal + logotipo Engeval (parceria) -->
     <div class="cobrand">
       <div class="personal">
-        <!-- 👇 TROQUE "Sua Marca" pelo nome da sua marca pessoal.
-             Se tiver um logotipo próprio, substitua este texto por uma <img>. -->
-        <span class="personal-name">Sua Marca</span>
+        <!-- Nome da marca pessoal (co-branding com a Engeval).
+             Para usar um logotipo próprio, troque este texto por uma <img>. -->
+        <span class="personal-name">Marco Souza</span>
         <span class="partner">
           <span class="partner-label">em parceria com</span>
           <img class="engeval-logo" src="assets/logo-engeval.png" alt="Engeval" />
@@ -244,7 +244,7 @@
       </div>
     </div>
     <p class="disclaimer">
-      <span class="cobrand-note">Uma iniciativa Sua Marca × Engeval.</span>
+      <span class="cobrand-note">Uma iniciativa Marco Souza × Engeval.</span>
       As orientações têm caráter educativo e não constituem recomendação de investimento ou consultoria financeira individual.
     </p>
   </div>
@@ -260,6 +260,12 @@
   // Histórico enviado ao GPT (o system prompt fica no servidor, em /api/chat)
   let history = [];
   let busy = false;
+
+  // ID único desta conversa — usado para salvar o histórico no banco de dados.
+  // "Nova conversa" recarrega a página e gera um novo ID.
+  const conversationId = (window.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : 'c-' + Date.now() + '-' + Math.random().toString(36).slice(2);
 
   // Saudação de abertura (definida no prompt, seção 14).
   // Mostrada na tela e registrada no histórico para o GPT não repetir.
@@ -362,7 +368,7 @@
       const res=await fetch('/api/chat',{
         method:'POST',
         headers:{ 'Content-Type':'application/json' },
-        body:JSON.stringify({ messages:history })
+        body:JSON.stringify({ messages:history, conversationId })
       });
 
       if(!res.ok){
