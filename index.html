@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bússola — Orientação de Finanças Pessoais</title>
+<meta name="description" content="Um ambiente para organizar sua vida financeira e receber orientação sobre finanças pessoais." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F4F5F2;
+    --surface:#FFFFFF;
+    --green-900:#12362B;
+    --green-700:#1E5140;
+    --green-500:#2F6B55;
+    --gold:#C69749;
+    --gold-soft:#E8DBBE;
+    --ink:#17201C;
+    --muted:#5C6B62;
+    --line:#E3E6E0;
+    --user-bubble:#12362B;
+    --shadow:0 1px 2px rgba(18,54,43,.06), 0 8px 24px rgba(18,54,43,.06);
+    --radius:16px;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; margin:0; }
+  body{
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    display:flex; flex-direction:column;
+    height:100dvh;
+  }
+
+  /* ---------- Header ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px;
+    padding:14px clamp(16px,4vw,32px);
+    background:var(--green-900);
+    color:#F3F1E9;
+    border-bottom:1px solid rgba(198,151,73,.35);
+    flex:0 0 auto;
+  }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand .mark{ flex:0 0 auto; }
+  .brand .name{
+    font-family:'Instrument Serif',serif;
+    font-size:26px; line-height:1; letter-spacing:.2px;
+    font-weight:400;
+  }
+  .brand .name b{ color:var(--gold); font-weight:400; }
+  .tag{
+    font-size:12.5px; color:rgba(243,241,233,.72);
+    letter-spacing:.02em;
+  }
+  .newchat{
+    font:inherit; font-size:13px; font-weight:500;
+    color:#F3F1E9; background:transparent;
+    border:1px solid rgba(232,219,190,.4); border-radius:999px;
+    padding:8px 14px; cursor:pointer; transition:background .15s,border-color .15s;
+  }
+  .newchat:hover{ background:rgba(232,219,190,.12); border-color:var(--gold); }
+  .newchat:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+
+  /* ---------- Chat area ---------- */
+  .stage{ flex:1 1 auto; overflow-y:auto; scroll-behavior:smooth; }
+  .stage-inner{
+    max-width:760px; margin:0 auto;
+    padding:clamp(20px,4vw,40px) clamp(16px,4vw,24px) 24px;
+  }
+
+  /* Welcome / empty state */
+  .welcome{ padding-top:clamp(12px,6vh,64px); }
+  .welcome .eyebrow{
+    font-size:12px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--gold); margin-bottom:14px;
+  }
+  .welcome h1{
+    font-family:'Instrument Serif',serif; font-weight:400;
+    font-size:clamp(30px,6vw,46px); line-height:1.08; margin:0 0 14px;
+    color:var(--green-900); letter-spacing:.2px;
+  }
+  .welcome h1 em{ font-style:italic; color:var(--green-700); }
+  .welcome p{ font-size:16px; color:var(--muted); margin:0 0 28px; max-width:52ch; line-height:1.55; }
+  .suggest-label{
+    font-size:12px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--muted); margin:0 0 12px;
+  }
+  .chips{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  @media (max-width:560px){ .chips{ grid-template-columns:1fr; } }
+  .chip{
+    text-align:left; font:inherit; font-size:14.5px; color:var(--ink);
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:14px 16px; cursor:pointer; line-height:1.4;
+    transition:border-color .15s, box-shadow .15s, transform .05s;
+    display:flex; align-items:center; gap:10px;
+  }
+  .chip::before{
+    content:""; flex:0 0 auto; width:6px; height:6px; border-radius:2px;
+    background:var(--gold); transform:rotate(45deg);
+  }
+  .chip:hover{ border-color:var(--green-500); box-shadow:var(--shadow); }
+  .chip:active{ transform:translateY(1px); }
+  .chip:focus-visible{ outline:2px solid var(--green-500); outline-offset:2px; }
+
+  /* Messages */
+  .msg{ display:flex; margin:18px 0; }
+  .msg.user{ justify-content:flex-end; }
+  .bubble{
+    max-width:min(85%,620px); padding:14px 18px; border-radius:var(--radius);
+    font-size:15.5px; line-height:1.62; word-wrap:break-word;
+  }
+  .msg.user .bubble{
+    background:var(--user-bubble); color:#F1EFE7;
+    border-bottom-right-radius:5px;
+  }
+  .msg.bot .bubble{
+    background:var(--surface); color:var(--ink);
+    border:1px solid var(--line); border-bottom-left-radius:5px;
+    box-shadow:var(--shadow);
+  }
+  .msg.bot .bubble p{ margin:0 0 10px; }
+  .msg.bot .bubble p:last-child{ margin-bottom:0; }
+  .msg.bot .bubble p.md-h{ font-weight:700; color:var(--green-900); margin-top:4px; }
+  .msg.bot .bubble ul,.msg.bot .bubble ol{ margin:6px 0 12px; padding-left:22px; }
+  .msg.bot .bubble li{ margin:4px 0; }
+  .msg.bot .bubble strong{ color:var(--green-900); font-weight:600; }
+  .msg.bot .bubble code{
+    background:var(--paper); border:1px solid var(--line); border-radius:5px;
+    padding:1px 5px; font-size:.9em; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  .avatar{
+    flex:0 0 auto; width:30px; height:30px; border-radius:8px;
+    background:var(--green-700); color:var(--gold);
+    display:grid; place-items:center; margin-right:12px; margin-top:2px;
+  }
+  .msg.error .bubble{ background:#FBEEE8; border:1px solid #E7C3B0; color:#7A3B24; box-shadow:none; }
+
+  /* typing */
+  .typing{ display:inline-flex; gap:5px; align-items:center; padding:4px 2px; }
+  .typing span{
+    width:7px; height:7px; border-radius:50%; background:var(--green-500);
+    animation:bounce 1.2s infinite ease-in-out;
+  }
+  .typing span:nth-child(2){ animation-delay:.15s; }
+  .typing span:nth-child(3){ animation-delay:.3s; }
+  @keyframes bounce{ 0%,60%,100%{ transform:translateY(0); opacity:.45; } 30%{ transform:translateY(-5px); opacity:1; } }
+
+  /* ---------- Composer ---------- */
+  .composer-wrap{ flex:0 0 auto; background:linear-gradient(to top,var(--paper) 70%,rgba(244,245,242,0)); padding:8px 0 14px; }
+  .composer{
+    max-width:760px; margin:0 auto; padding:0 clamp(16px,4vw,24px);
+  }
+  .field{
+    display:flex; align-items:flex-end; gap:10px;
+    background:var(--surface); border:1px solid var(--line); border-radius:20px;
+    padding:8px 8px 8px 18px; box-shadow:var(--shadow);
+    transition:border-color .15s;
+  }
+  .field:focus-within{ border-color:var(--green-500); }
+  textarea#input{
+    flex:1 1 auto; border:none; outline:none; resize:none; background:transparent;
+    font:inherit; font-size:15.5px; color:var(--ink); line-height:1.5;
+    max-height:180px; padding:9px 0; max-width:100%;
+  }
+  textarea#input::placeholder{ color:#9AA79F; }
+  .send{
+    flex:0 0 auto; width:42px; height:42px; border-radius:50%; border:none; cursor:pointer;
+    background:var(--green-900); color:var(--gold);
+    display:grid; place-items:center; transition:background .15s, transform .05s;
+  }
+  .send:hover:not(:disabled){ background:var(--green-700); }
+  .send:active:not(:disabled){ transform:scale(.94); }
+  .send:disabled{ opacity:.4; cursor:not-allowed; }
+  .send:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+  .disclaimer{
+    max-width:760px; margin:8px auto 0; padding:0 clamp(16px,4vw,24px);
+    font-size:11.5px; color:var(--muted); text-align:center; line-height:1.4;
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *{ animation:none !important; scroll-behavior:auto !important; transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">
+        <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+          <circle cx="15" cy="15" r="13.2" stroke="#E8DBBE" stroke-width="1.4" opacity="0.55"/>
+          <path d="M15 6.5 L18 15 L15 23.5 L12 15 Z" fill="#C69749"/>
+          <path d="M15 6.5 L12 15 L15 15 Z" fill="#F3F1E9"/>
+          <circle cx="15" cy="15" r="1.9" fill="#12362B" stroke="#E8DBBE" stroke-width="1"/>
+        </svg>
+      </span>
+      <div>
+        <div class="name">Bú<b>ssola</b></div>
+      </div>
+    </div>
+    <span class="tag">Orientação de finanças pessoais</span>
+    <button class="newchat" id="newChat" type="button">Nova conversa</button>
+  </header>
+
+  <main class="stage" id="stage">
+    <div class="stage-inner" id="thread">
+
+      <section class="welcome" id="welcome">
+        <div class="eyebrow">Seu norte financeiro</div>
+        <h1>Vamos organizar<br>o seu dinheiro, <em>juntos</em>.</h1>
+        <p>Descreva sua situação, tire dúvidas ou peça um plano. As respostas são educativas e pensadas para o seu contexto — sem julgamentos.</p>
+        <p class="suggest-label">Comece por aqui</p>
+        <div class="chips" id="chips">
+          <button class="chip" type="button">Como montar um orçamento mensal do zero?</button>
+          <button class="chip" type="button">Quero sair das dívidas — por onde começo?</button>
+          <button class="chip" type="button">Quanto guardar na reserva de emergência?</button>
+          <button class="chip" type="button">Como começar a investir com pouco dinheiro?</button>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <div class="composer-wrap">
+    <div class="composer">
+      <div class="field">
+        <textarea id="input" rows="1" placeholder="Escreva sua pergunta sobre finanças…" autocomplete="off"></textarea>
+        <button class="send" id="send" type="button" aria-label="Enviar mensagem" disabled>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M4 12 L20 4 L14 20 L11.5 13.5 Z" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <p class="disclaimer">As orientações têm caráter educativo e não constituem recomendação de investimento ou consultoria financeira individual.</p>
+  </div>
+
+<script>
+(function(){
+  const stage   = document.getElementById('stage');
+  const thread  = document.getElementById('thread');
+  const welcome = document.getElementById('welcome');
+  const input   = document.getElementById('input');
+  const sendBtn = document.getElementById('send');
+  const newChat = document.getElementById('newChat');
+  const chips   = document.getElementById('chips');
+
+  // Histórico enviado ao GPT (o system prompt fica no servidor, em /api/chat)
+  let history = [];
+  let busy = false;
+
+  /* ---------- utilidades ---------- */
+  function escapeHtml(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function inline(t){
+    return t
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .replace(/(^|[^*])\*(?!\s)([^*]+?)\*(?!\*)/g,'$1<em>$2</em>')
+      .replace(/`(.+?)`/g,'<code>$1</code>');
+  }
+  function renderMarkdown(text){
+    const lines = escapeHtml(text).split(/\r?\n/);
+    let html='', inUl=false, inOl=false;
+    const closeLists=()=>{ if(inUl){html+='</ul>';inUl=false;} if(inOl){html+='</ol>';inOl=false;} };
+    for(const raw of lines){
+      const line=raw.trim();
+      if(line===''){ closeLists(); continue; }
+      let m;
+      if((m=line.match(/^#{1,4}\s+(.*)$/))){ closeLists(); html+='<p class="md-h">'+inline(m[1])+'</p>'; continue; }
+      if((m=line.match(/^[-*]\s+(.*)$/))){
+        if(inOl){html+='</ol>';inOl=false;}
+        if(!inUl){html+='<ul>';inUl=true;}
+        html+='<li>'+inline(m[1])+'</li>'; continue;
+      }
+      if((m=line.match(/^\d+[.)]\s+(.*)$/))){
+        if(inUl){html+='</ul>';inUl=false;}
+        if(!inOl){html+='<ol>';inOl=true;}
+        html+='<li>'+inline(m[1])+'</li>'; continue;
+      }
+      closeLists();
+      html+='<p>'+inline(line)+'</p>';
+    }
+    closeLists();
+    return html;
+  }
+  function scrollDown(){ stage.scrollTop = stage.scrollHeight; }
+
+  /* ---------- render de mensagens ---------- */
+  function addUser(text){
+    const el=document.createElement('div');
+    el.className='msg user';
+    el.innerHTML='<div class="bubble"></div>';
+    el.querySelector('.bubble').textContent=text;
+    thread.appendChild(el); scrollDown();
+  }
+  function addBot(html, kind){
+    const el=document.createElement('div');
+    el.className='msg '+(kind||'bot');
+    el.innerHTML='<div class="avatar" aria-hidden="true">'+
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3 L14.5 12 L12 21 L9.5 12 Z" fill="currentColor"/></svg>'+
+      '</div><div class="bubble"></div>';
+    el.querySelector('.bubble').innerHTML=html;
+    thread.appendChild(el); scrollDown();
+    return el;
+  }
+  function showTyping(){
+    return addBot('<div class="typing"><span></span><span></span><span></span></div>','bot');
+  }
+
+  /* ---------- envio ---------- */
+  async function send(text){
+    if(busy) return;
+    text=(text||'').trim();
+    if(!text) return;
+
+    if(welcome){ welcome.remove(); }
+    addUser(text);
+    history.push({ role:'user', content:text });
+
+    input.value=''; autoGrow(); toggleSend();
+    busy=true; sendBtn.disabled=true;
+
+    const typingEl=showTyping();
+
+    try{
+      const res=await fetch('/api/chat',{
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body:JSON.stringify({ messages:history })
+      });
+
+      if(!res.ok){
+        let detail='';
+        try{ const j=await res.json(); detail=j.error||''; }catch(e){}
+        throw new Error(detail || ('Erro '+res.status));
+      }
+
+      const data=await res.json();
+      const reply=(data && data.reply) ? data.reply : 'Não consegui gerar uma resposta agora.';
+      typingEl.querySelector('.bubble').innerHTML=renderMarkdown(reply);
+      history.push({ role:'assistant', content:reply });
+      scrollDown();
+    }catch(err){
+      typingEl.className='msg error';
+      typingEl.querySelector('.bubble').innerHTML=
+        '<strong>Não foi possível responder.</strong><br>'+
+        escapeHtml(err.message||'Verifique a conexão e tente novamente.')+
+        '<br><span style="opacity:.75">Se acabou de publicar, confirme se a chave da API foi configurada na Vercel.</span>';
+    }finally{
+      busy=false; toggleSend();
+    }
+  }
+
+  /* ---------- input UX ---------- */
+  function autoGrow(){
+    input.style.height='auto';
+    input.style.height=Math.min(input.scrollHeight,180)+'px';
+  }
+  function toggleSend(){ sendBtn.disabled = busy || input.value.trim()===''; }
+
+  input.addEventListener('input',()=>{ autoGrow(); toggleSend(); });
+  input.addEventListener('keydown',(e)=>{
+    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(input.value); }
+  });
+  sendBtn.addEventListener('click',()=> send(input.value));
+  chips.addEventListener('click',(e)=>{
+    const b=e.target.closest('.chip'); if(b) send(b.textContent);
+  });
+  newChat.addEventListener('click',()=>{ location.reload(); });
+
+  input.focus();
+})();
+</script>
+</body>
+</html>
