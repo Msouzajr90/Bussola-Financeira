@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Painel do gestor — Marco Souza × Engeval</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EEF3F8; --surface:#FFFFFF;
+    --blue:#0078C0; --blue-deep:#005B92; --blue-dark:#00406B; --cyan:#309CD8;
+    --ink:#16232E; --muted:#5B6E7B; --line:#D9E4EC;
+    --ok:#1D9E75; --ok-bg:#E1F5EE; --warn:#BA7517; --warn-bg:#FAEEDA;
+    --bad:#A32D2D; --bad-bg:#FCEBEB;
+    --shadow:0 1px 2px rgba(0,64,107,.06), 0 10px 28px rgba(0,64,107,.07);
+    --orb:radial-gradient(circle at 32% 28%, #86C7EC 0%, #1E8BCE 42%, #0078C0 66%, #005B92 100%);
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:'Inter',system-ui,sans-serif; background:var(--paper); color:var(--ink); -webkit-font-smoothing:antialiased; }
+  button{ font:inherit; }
+  .topbar{ display:flex; align-items:center; gap:12px; padding:13px clamp(14px,4vw,28px);
+    background:var(--surface); border-bottom:1px solid var(--line); box-shadow:0 1px 2px rgba(0,64,107,.08); }
+  .topbar .dot{ width:14px; height:14px; border-radius:50%; background:var(--orb); }
+  .topbar h1{ font-family:'Archivo',sans-serif; font-weight:800; font-size:17px; color:var(--blue-dark); margin:0; }
+  .topbar .sub{ font-size:12.5px; color:var(--muted); margin-left:auto; }
+  .wrap{ max-width:1060px; margin:0 auto; padding:clamp(18px,3vw,30px) clamp(14px,4vw,24px) 60px; }
+
+  .gate{ max-width:380px; margin:9vh auto 0; background:var(--surface); border:1px solid var(--line);
+    border-radius:16px; padding:28px; box-shadow:var(--shadow); }
+  .gate h2{ font-family:'Archivo',sans-serif; font-weight:700; font-size:19px; color:var(--blue-dark); margin:0 0 6px; }
+  .gate p{ font-size:13.5px; color:var(--muted); margin:0 0 18px; line-height:1.5; }
+  label{ display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:5px; }
+  input,textarea{ width:100%; font:inherit; font-size:15px; padding:11px 13px; border:1px solid var(--line);
+    border-radius:10px; outline:none; background:var(--surface); color:var(--ink); }
+  textarea{ resize:vertical; min-height:60px; }
+  input:focus,textarea:focus{ border-color:var(--blue); box-shadow:0 0 0 3px rgba(0,120,192,.12); }
+  .btn{ font-weight:600; font-size:14px; color:#fff; background:var(--orb); border:none; border-radius:10px;
+    padding:11px 18px; cursor:pointer; box-shadow:0 3px 10px rgba(0,120,192,.3); }
+  .btn:hover{ filter:brightness(1.05); }
+  .btn.wide{ width:100%; margin-top:14px; }
+  .err{ color:#8A2C2C; font-size:13px; margin-top:12px; min-height:18px; }
+
+  .cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:18px; }
+  .card{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:15px 17px; box-shadow:var(--shadow); }
+  .card .k{ font-size:11.5px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
+  .card .v{ font-family:'Archivo',sans-serif; font-weight:800; font-size:25px; color:var(--blue-dark); margin-top:4px; }
+  .card.alert .v{ color:var(--warn); }
+
+  .nav{ display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .nav button{ padding:10px 16px; border:1px solid var(--line); background:var(--surface); border-radius:10px;
+    font-size:13.5px; font-weight:600; color:var(--muted); cursor:pointer; }
+  .nav button.on{ background:var(--blue-dark); border-color:var(--blue-dark); color:#fff; }
+  .nav .pill{ background:var(--warn); color:#fff; border-radius:999px; padding:1px 7px; font-size:11px; margin-left:5px; }
+
+  .panel{ background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); overflow:hidden; margin-bottom:16px; }
+  .panel-head{ padding:14px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .panel-head strong{ font-family:'Archivo',sans-serif; font-size:14.5px; color:var(--blue-dark); }
+  .panel-head .hint{ font-size:12px; color:var(--muted); }
+
+  table{ width:100%; border-collapse:collapse; }
+  th{ text-align:left; font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--muted); padding:11px 16px; border-bottom:1px solid var(--line); background:var(--paper); }
+  td{ padding:12px 16px; border-bottom:1px solid var(--line); font-size:14px; vertical-align:middle; }
+  tr:last-child td{ border-bottom:none; }
+  tr:hover td{ background:#F7FBFD; }
+  .pos{ font-family:'Archivo',sans-serif; font-weight:700; color:var(--muted); }
+  .lvl{ display:inline-block; font-size:11.5px; font-weight:600; background:#EAF4FB; color:var(--blue-deep);
+    border-radius:999px; padding:3px 9px; }
+  .pts{ font-family:'Archivo',sans-serif; font-weight:700; color:var(--blue-dark); }
+  .link{ font-size:13px; font-weight:600; color:var(--blue); background:none; border:none; cursor:pointer; padding:0; }
+  .link:hover{ text-decoration:underline; }
+
+  .sub{ padding:15px 18px; border-bottom:1px solid var(--line); }
+  .sub:last-child{ border-bottom:none; }
+  .sub-top{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+  .sub-top .who{ font-weight:600; font-size:14.5px; }
+  .sub-top .when{ font-size:12px; color:var(--muted); margin-left:auto; }
+  .tag{ font-size:11px; font-weight:600; border-radius:999px; padding:3px 9px; }
+  .tag.pendente{ background:var(--warn-bg); color:#854F0B; }
+  .tag.aprovado{ background:var(--ok-bg); color:#0F6E56; }
+  .tag.recusado{ background:var(--bad-bg); color:var(--bad); }
+  .sub .what{ font-size:13.5px; color:var(--muted); margin-bottom:10px; }
+  .sub-data{ background:var(--paper); border:1px solid var(--line); border-radius:9px; padding:11px 13px;
+    font-size:13px; line-height:1.6; white-space:pre-wrap; margin-bottom:10px; }
+  .sub img{ max-width:100%; max-height:340px; border-radius:9px; border:1px solid var(--line); display:block; margin-bottom:10px; }
+  .acts{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .acts .ok{ background:var(--ok); color:#fff; border:none; border-radius:9px; padding:8px 15px; font-size:13px; font-weight:600; cursor:pointer; }
+  .acts .no{ background:var(--surface); color:var(--bad); border:1px solid #E7BEBE; border-radius:9px; padding:8px 15px; font-size:13px; font-weight:600; cursor:pointer; }
+  .acts input{ flex:1; min-width:160px; font-size:13px; padding:8px 11px; }
+
+  .msg{ margin-bottom:13px; }
+  .msg .r{ font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; margin-bottom:4px; }
+  .msg.user .r{ color:var(--blue); } .msg.assistant .r{ color:var(--muted); }
+  .msg .bd{ font-size:14px; line-height:1.6; white-space:pre-wrap; background:var(--paper);
+    border:1px solid var(--line); border-radius:9px; padding:11px 13px; }
+  .msg.user .bd{ background:#EAF4FB; border-color:#CFE6F5; }
+
+  .prizerow{ display:grid; grid-template-columns:44px 1fr 1.4fr; gap:10px; align-items:start;
+    padding:13px 18px; border-bottom:1px solid var(--line); }
+  .prizerow:last-of-type{ border-bottom:none; }
+  .prizerow .lv{ width:34px; height:34px; border-radius:9px; background:var(--orb); color:#fff;
+    display:grid; place-items:center; font-weight:700; font-size:14px; margin-top:22px; }
+  .empty{ padding:34px 18px; text-align:center; color:var(--muted); font-size:14px; }
+  .note{ font-size:12px; color:var(--muted); padding:12px 18px; background:var(--paper); line-height:1.5; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="dot"></span>
+  <h1>Painel do gestor</h1>
+  <span class="sub">Programa de Saúde Financeira · Marco Souza × Engeval</span>
+</div>
+
+<div class="wrap">
+
+  <section class="gate" id="gate">
+    <h2>Acesso restrito</h2>
+    <p>Informe a senha do gestor para abrir o painel.</p>
+    <label for="pw">Senha</label>
+    <input type="password" id="pw" placeholder="••••••••" autocomplete="current-password" />
+    <button class="btn wide" id="enter" type="button">Entrar</button>
+    <div class="err" id="gErr"></div>
+  </section>
+
+  <section id="dash" style="display:none">
+    <div class="cards" id="cards"></div>
+
+    <div class="nav">
+      <button type="button" class="on" data-v="ranking">Colaboradores</button>
+      <button type="button" data-v="fila">Aprovações <span class="pill" id="pill" style="display:none">0</span></button>
+      <button type="button" data-v="premios">Prêmios</button>
+      <button type="button" id="reload">Atualizar</button>
+      <button type="button" id="exit">Sair</button>
+    </div>
+
+    <div id="vRanking"></div>
+    <div id="vFila" style="display:none"></div>
+    <div id="vPremios" style="display:none"></div>
+  </section>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  let key='', data=null, subs=[], prizes=[];
+
+  const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const fmt = ts => ts ? new Date(ts).toLocaleString('pt-BR') : '—';
+
+  async function api(qs, opts={}){
+    const r = await fetch('/api/admin?'+qs, { ...opts, headers:{ 'Content-Type':'application/json', 'x-admin-key':key } });
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.error || 'Erro.');
+    return j;
+  }
+
+  /* login */
+  async function login(){
+    key = $('pw').value.trim(); $('gErr').textContent='';
+    if(!key){ $('gErr').textContent='Digite a senha.'; return; }
+    try{
+      await loadAll();
+      $('gate').style.display='none'; $('dash').style.display='block';
+    }catch(err){ $('gErr').textContent = err.message; }
+  }
+  $('enter').onclick = login;
+  $('pw').addEventListener('keydown', e=>{ if(e.key==='Enter') login(); });
+  $('exit').onclick = ()=>{ key=''; $('pw').value=''; $('dash').style.display='none'; $('gate').style.display='block'; };
+  $('reload').onclick = ()=> loadAll().catch(e=>alert(e.message));
+
+  async function loadAll(){
+    const [ov, sb, pz] = await Promise.all([
+      api('action=overview'), api('action=submissions'), api('action=prizes')
+    ]);
+    data = ov; subs = sb.submissions || []; prizes = pz.prizes || [];
+    renderCards(); renderRanking(); renderFila(); renderPrizes();
+  }
+
+  function renderCards(){
+    const r = data.resumo;
+    $('cards').innerHTML =
+      '<div class="card"><div class="k">Colaboradores</div><div class="v">'+r.colaboradores+'</div></div>'+
+      '<div class="card"><div class="k">Pontos distribuídos</div><div class="v">'+r.pontosTotais+'</div></div>'+
+      '<div class="card'+(r.comprovantesPendentes?' alert':'')+'"><div class="k">Aprovações pendentes</div><div class="v">'+r.comprovantesPendentes+'</div></div>'+
+      r.porNivel.filter(n=>n.total>0).map(n=>
+        '<div class="card"><div class="k">Nível '+n.level+' — '+esc(n.name)+'</div><div class="v">'+n.total+'</div></div>').join('');
+    const p = $('pill');
+    if(r.comprovantesPendentes){ p.style.display='inline-block'; p.textContent = r.comprovantesPendentes; }
+    else p.style.display='none';
+  }
+
+  function renderRanking(){
+    const rows = data.ranking;
+    if(!rows.length){ $('vRanking').innerHTML = '<div class="panel"><div class="empty">Nenhum colaborador cadastrado ainda.</div></div>'; return; }
+    $('vRanking').innerHTML =
+      '<div class="panel"><div class="panel-head"><strong>Ranking individual</strong>'+
+      '<span class="hint">Visível apenas para você — os colaboradores não veem uns aos outros.</span></div>'+
+      '<table><thead><tr><th>#</th><th>Colaborador</th><th>Matrícula</th><th>Nível</th><th>Pontos</th><th>Missões</th><th>Conversa</th></tr></thead><tbody>'+
+      rows.map((r,i)=>'<tr><td class="pos">'+(i+1)+'</td>'+
+        '<td>'+esc(r.nome)+'</td><td>'+esc(r.matricula)+'</td>'+
+        '<td><span class="lvl">'+r.level.level+' — '+esc(r.level.name)+'</span></td>'+
+        '<td class="pts">'+r.points+'</td><td>'+r.missoes+'</td>'+
+        '<td><button class="link" data-conv="'+esc(r.matricula)+'">Ver conversa</button></td></tr>').join('')+
+      '</tbody></table></div><div id="convBox"></div>';
+    document.querySelectorAll('[data-conv]').forEach(b=> b.onclick = ()=> openConv(b.dataset.conv));
+  }
+
+  async function openConv(m){
+    const box = $('convBox');
+    box.innerHTML = '<div class="panel"><div class="empty">Carregando conversa…</div></div>';
+    try{
+      const j = await api('action=conversation&m='+encodeURIComponent(m));
+      const msgs = j.conversation.messages || [];
+      box.innerHTML = '<div class="panel"><div class="panel-head"><strong>Conversa — matrícula '+esc(m)+'</strong>'+
+        '<span class="hint">Atualizada em '+fmt(j.conversation.updatedAt)+'</span></div>'+
+        '<div style="padding:18px">'+ (msgs.map(x=>
+          '<div class="msg '+esc(x.role)+'"><div class="r">'+(x.role==='user'?'Colaborador':'Orientador')+'</div>'+
+          '<div class="bd">'+esc(x.content)+'</div></div>').join('') || '<div class="empty">Conversa vazia.</div>') +
+        '</div></div>';
+      box.scrollIntoView({ behavior:'smooth', block:'start' });
+    }catch(err){
+      box.innerHTML = '<div class="panel"><div class="empty">'+esc(err.message)+'</div></div>';
+    }
+  }
+
+  function renderFila(){
+    const pend = subs.filter(s=>s.status==='pendente');
+    const outros = subs.filter(s=>s.status!=='pendente').slice(0,40);
+    let html = '<div class="panel"><div class="panel-head"><strong>Comprovantes aguardando aprovação</strong>'+
+      '<span class="hint">Os pontos só entram depois que você aprovar.</span></div>';
+    html += pend.length ? pend.map(subCard).join('') : '<div class="empty">Nenhum comprovante pendente.</div>';
+    html += '</div>';
+    if(outros.length){
+      html += '<div class="panel"><div class="panel-head"><strong>Histórico de envios</strong></div>'+
+        outros.map(subCard).join('')+'</div>';
+    }
+    $('vFila').innerHTML = html;
+    document.querySelectorAll('[data-file]').forEach(b=> b.onclick = ()=> showFile(b.dataset.file, b));
+    document.querySelectorAll('[data-ok]').forEach(b=> b.onclick = ()=> review(b.dataset.ok, 'aprovar', b));
+    document.querySelectorAll('[data-no]').forEach(b=> b.onclick = ()=> review(b.dataset.no, 'recusar', b));
+  }
+
+  function subCard(s){
+    const dados = (s.type==='proof') ? '' :
+      '<div class="sub-data">'+ esc(Object.entries(s.data||{}).map(([k,v])=>k+': '+v).join('\n') || '—') +'</div>';
+    const arquivo = s.fileId ? '<div id="f_'+s.id+'"><button class="link" data-file="'+s.id+'">Ver comprovante enviado</button></div>' : '';
+    const acoes = s.status==='pendente'
+      ? '<div class="acts"><input type="text" id="n_'+s.id+'" placeholder="Observação (opcional)">'+
+        '<button class="ok" data-ok="'+s.id+'">Aprovar</button>'+
+        '<button class="no" data-no="'+s.id+'">Recusar</button></div>'
+      : (s.note ? '<div class="what">Observação: '+esc(s.note)+'</div>' : '');
+    return '<div class="sub"><div class="sub-top"><span class="who">'+esc(s.nome||s.matricula)+'</span>'+
+      '<span class="tag '+s.status+'">'+s.status+'</span>'+
+      (s.points ? '<span class="tag aprovado">+'+s.points+' pts</span>' : '')+
+      '<span class="when">'+fmt(s.createdAt)+'</span></div>'+
+      '<div class="what">'+esc(s.missionTitle)+'</div>'+ dados + arquivo + acoes + '</div>';
+  }
+
+  async function showFile(id, btn){
+    btn.textContent = 'Carregando…';
+    try{
+      const sub = subs.find(s=>s.id===id);
+      const j = await api('action=file&id='+encodeURIComponent(sub.fileId));
+      const box = $('f_'+id);
+      if(j.file.startsWith('data:application/pdf')){
+        box.innerHTML = '<a class="link" href="'+j.file+'" target="_blank" rel="noopener">Abrir PDF do comprovante</a>';
+      } else {
+        box.innerHTML = '<img src="'+j.file+'" alt="Comprovante enviado">';
+      }
+    }catch(err){ btn.textContent = 'Erro: ' + err.message; }
+  }
+
+  async function review(id, decision, btn){
+    btn.disabled = true; btn.textContent = '…';
+    const note = ($('n_'+id) || {}).value || '';
+    try{
+      await api('action=review', { method:'POST', body: JSON.stringify({ id, decision, note }) });
+      await loadAll();
+    }catch(err){ alert(err.message); btn.disabled=false; }
+  }
+
+  function renderPrizes(){
+    const byLevel = {};
+    prizes.forEach(p => byLevel[p.level] = p);
+    let rows = '';
+    for(let lv=2; lv<=5; lv++){
+      const p = byLevel[lv] || {};
+      rows += '<div class="prizerow"><div class="lv">'+lv+'</div>'+
+        '<div><label for="pt_'+lv+'">Prêmio do nível '+lv+'</label>'+
+        '<input type="text" id="pt_'+lv+'" value="'+esc(p.titulo||'')+'" placeholder="Ex.: Vale-compras"></div>'+
+        '<div><label for="pd_'+lv+'">Descrição / regras</label>'+
+        '<textarea id="pd_'+lv+'" placeholder="Detalhe como o colaborador recebe">'+esc(p.descricao||'')+'</textarea></div></div>';
+    }
+    $('vPremios').innerHTML = '<div class="panel"><div class="panel-head"><strong>Cadastro de prêmios</strong>'+
+      '<span class="hint">Marcos garantidos: bateu o nível, ganhou.</span></div>'+ rows +
+      '<div class="note">Deixe em branco os níveis ainda não definidos — o colaborador verá apenas os prêmios preenchidos. '+
+      'O nível 1 é o ponto de partida e não tem prêmio.</div>'+
+      '<div style="padding:16px 18px"><button class="btn" id="savePrizes" type="button">Salvar prêmios</button></div></div>';
+    $('savePrizes').onclick = savePrizes;
+  }
+
+  async function savePrizes(){
+    const list = [];
+    for(let lv=2; lv<=5; lv++){
+      const t = $('pt_'+lv).value.trim();
+      const d = $('pd_'+lv).value.trim();
+      if(t || d) list.push({ level: lv, titulo: t, descricao: d, ativo: true });
+    }
+    const b = $('savePrizes'); b.disabled = true; b.textContent = 'Salvando…';
+    try{
+      await api('action=prizes', { method:'POST', body: JSON.stringify({ prizes: list }) });
+      await loadAll();
+      b.textContent = 'Salvo ✓';
+      setTimeout(()=>{ b.textContent='Salvar prêmios'; b.disabled=false; }, 1500);
+    }catch(err){ alert(err.message); b.disabled=false; b.textContent='Salvar prêmios'; }
+  }
+
+  document.querySelectorAll('.nav [data-v]').forEach(b=>{
+    b.onclick = ()=>{
+      document.querySelectorAll('.nav [data-v]').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+      $('vRanking').style.display = b.dataset.v==='ranking' ? 'block':'none';
+      $('vFila').style.display    = b.dataset.v==='fila'    ? 'block':'none';
+      $('vPremios').style.display = b.dataset.v==='premios' ? 'block':'none';
+    };
+  });
+
+  $('pw').focus();
+})();
+</script>
+</body>
+</html>

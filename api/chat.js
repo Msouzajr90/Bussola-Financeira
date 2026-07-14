@@ -1,3 +1,5 @@
+import { sessionUser, saveConversation } from '../lib/store.js';
+
 // ============================================================================
 //  Função de servidor (Vercel) — conversa com o GPT sem expor a sua chave.
 //  A interface (index.html) envia as mensagens para este arquivo em /api/chat,
@@ -281,37 +283,6 @@ orientação correspondente, fazendo as perguntas necessárias conforme as seç�
 
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
-// ============================================================================
-//  Banco de dados (Upstash Redis) — grava o histórico de cada conversa.
-//  As credenciais são injetadas pela Vercel ao instalar o Upstash pelo
-//  Marketplace (KV_REST_API_URL / KV_REST_API_TOKEN). Se não estiverem
-//  configuradas, o site funciona normalmente, apenas sem gravar o histórico.
-// ============================================================================
-const REDIS_URL   = process.env.KV_REST_API_URL   || process.env.UPSTASH_REDIS_REST_URL;
-const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-
-async function saveConversation(id, messages) {
-  if (!REDIS_URL || !REDIS_TOKEN || !id) return; // gravação é opcional
-  try {
-    const now = Date.now();
-    const record = JSON.stringify({ id, updatedAt: now, messages });
-    // Salva a conversa e a indexa por data (para listar da mais recente).
-    await fetch(`${REDIS_URL}/pipeline`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${REDIS_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify([
-        ['SET', `conv:${id}`, record],
-        ['ZADD', 'idx:conversations', String(now), id],
-      ]),
-    });
-  } catch (e) {
-    console.error('Falha ao gravar conversa:', e);
-  }
-}
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método não permitido.' });
@@ -320,35 +291,43 @@ export default async function handler(req, res) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return res.status(500).json({
-      error: 'Chave da API não configurada. Defina OPENAI_API_KEY nas variáveis de ambiente da Vercel.'
+      error: 'Chave da API não configurada. Defina OPENAI_API_KEY na Vercel.'
     });
   }
 
+  // Só conversa quem está logado — assim a conversa fica ligada à matrícula.
+  const user = await sessionUser(req);
+  if (!user) return res.status(401).json({ error: 'Sessão expirada. Entre novamente.' });
+
   try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const messages = body && Array.isArray(body.messages) ? body.messages : null;
-    const conversationId = body && typeof body.conversationId === 'string' ? body.conversationId : null;
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+    const messages = Array.isArray(body.messages) ? body.messages : null;
+    if (!messages) return res.status(400).json({ error: 'Formato de mensagens inválido.' });
 
-    if (!messages) {
-      return res.status(400).json({ error: 'Formato de mensagens inválido.' });
-    }
-
-    // Mantém apenas os campos esperados e limita o histórico para conter custos.
     const clean = messages
       .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
-      .slice(-20)
+      .slice(-24)
       .map(m => ({ role: m.role, content: m.content.slice(0, 6000) }));
+
+    // Contexto do colaborador, para o Orientador personalizar a conversa.
+    const contexto = `Contexto do programa (não repita isto ao usuário):
+O colaborador se chama ${user.nome}. Ele participa de um programa de saúde financeira
+da empresa, com trilhas e missões que valem pontos. Se fizer sentido na conversa, você
+pode incentivá-lo a registrar o que combinaram nas missões do painel (por exemplo:
+montar o orçamento, mapear as dívidas, criar o plano de quitação). Não prometa pontos
+nem prêmios específicos.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: MODEL,
         temperature: 0.7,
-        messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...clean],
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: contexto },
+          ...clean,
+        ],
       }),
     });
 
@@ -356,18 +335,21 @@ export default async function handler(req, res) {
       const detail = await response.text();
       console.error('Erro da OpenAI:', response.status, detail);
       return res.status(502).json({
-        error: 'O serviço do GPT retornou um erro. Verifique a chave da API e os créditos da sua conta OpenAI.'
+        error: 'O serviço do GPT retornou um erro. Verifique a chave da API e os créditos da conta OpenAI.'
       });
     }
 
     const data = await response.json();
     const reply = data?.choices?.[0]?.message?.content?.trim() || '';
 
-    // Grava o histórico completo (perguntas + respostas) no banco de dados.
-    await saveConversation(conversationId, [...clean, { role: 'assistant', content: reply }]);
+    // Grava a conversa vinculada à matrícula do colaborador.
+    try {
+      await saveConversation(user.matricula, [...clean, { role: 'assistant', content: reply }]);
+    } catch (e) {
+      console.error('Falha ao gravar conversa:', e);
+    }
 
     return res.status(200).json({ reply });
-
   } catch (err) {
     console.error('Erro interno:', err);
     return res.status(500).json({ error: 'Erro interno ao processar a solicitação.' });

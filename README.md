@@ -1,159 +1,134 @@
-# Bússola — Orientação de Finanças Pessoais
+# Programa de Saúde Financeira — Marco Souza × Engeval
 
-Um site simples que conversa com o **GPT** para ajudar as pessoas a organizar a vida
-financeira. A interface fica no `index.html` e uma pequena função de servidor
-(`api/chat.js`) guarda a sua chave da API em segredo e fala com a OpenAI.
+Site gamificado de educação financeira para colaboradores da fábrica. O colaborador
+entra com matrícula + PIN, conversa com um Orientador Financeiro (GPT), cumpre missões,
+ganha pontos e sobe de nível. O gestor acompanha tudo por um painel próprio.
 
 ```
-bussola-financeira/
-├── index.html          → a página que o público vê (o chat)
-├── historico.html      → painel interno (Marco) para ver as conversas — protegido por senha
+├── index.html        → colaborador: login, painel, missões e chat
+├── gestor.html       → gestor: ranking, conversas, aprovações e prêmios (senha)
 ├── api/
-│   ├── chat.js         → função de servidor; guarda a chave e o prompt, grava o histórico
-│   └── history.js      → função de servidor que lê o histórico (protegida por senha)
-├── assets/
-│   └── logo-engeval.png
-├── package.json
-├── .env.example        → modelo das variáveis de ambiente
-├── .gitignore
-└── README.md
-```
-
-O prompt "Orientador de Finanças Pessoais" já vem inserido em `api/chat.js`.
-
----
-
-## Passo 0 — Antes de começar você vai precisar de
-
-1. Uma conta no **GitHub** — https://github.com
-2. Uma conta na **Vercel** — https://vercel.com (pode entrar com o GitHub)
-3. Uma **chave da API da OpenAI** — https://platform.openai.com/api-keys
-   - A API é paga por uso (por tokens). Ative um método de pagamento em
-     *Billing* na plataforma da OpenAI. Modelos como `gpt-4o-mini` têm custo baixo.
-
----
-
-## Passo 1 — O prompt já está pronto
-
-O prompt já está inserido em `api/chat.js`, dentro de `SYSTEM_PROMPT`. Para ajustá-lo no
-futuro, é só editar o texto entre as crases `` ` ``. Nenhuma outra ação é necessária aqui.
-
----
-
-## Passo 2 — Suba o projeto para o GitHub
-
-**Opção A — pelo site (sem instalar nada):**
-1. Em https://github.com/new crie um repositório (ex.: `bussola-financeira`).
-2. Na página do repositório, clique em **Add file → Upload files**.
-3. Arraste **todos os arquivos desta pasta** (incluindo a pasta `api`) e confirme
-   em **Commit changes**.
-
-**Opção B — pelo terminal (se você usa Git):**
-```bash
-git init
-git add .
-git commit -m "Primeira versão da Bússola"
-git branch -M main
-git remote add origin https://github.com/SEU-USUARIO/bussola-financeira.git
-git push -u origin main
+│   ├── auth.js       → cadastro e login (matrícula + PIN)
+│   ├── chat.js       → Orientador Financeiro (contém o prompt)
+│   ├── missions.js   → envio de missões, pontuação, validação
+│   └── admin.js      → painel do gestor
+├── lib/
+│   ├── missions.js   → CATÁLOGO: trilhas, missões, pontos e níveis (edite aqui)
+│   └── store.js      → banco de dados e autenticação
+└── assets/logo-engeval.png
 ```
 
 ---
 
-## Passo 3 — Publique na Vercel
+## Como o jogo funciona
 
-1. Acesse https://vercel.com e entre com o GitHub.
-2. **Add New… → Project** e selecione o repositório `bussola-financeira`.
-3. Não precisa mudar nada em *Build & Output* (é um site estático + função).
-4. Abra **Environment Variables** e adicione:
+**Princípio:** pontua-se **comportamento**, não situação financeira. Quem está endividado
+pontua igual a quem já está no azul. Isso evita punir quem mais precisa de ajuda — e evita
+que a pessoa minta para o Orientador para "parecer bem".
 
-   | Name             | Value                                             |
-   |------------------|---------------------------------------------------|
-   | `OPENAI_API_KEY` | sua chave `sk-...` da OpenAI                       |
-   | `ADMIN_PASSWORD` | uma senha forte (para abrir a página de histórico)|
+**7 trilhas · 14 missões:** Diagnóstico, Orçamento, Dívidas, Cartão, Reserva, Objetivos e Hábitos.
 
-   (Opcional: `OPENAI_MODEL` = `gpt-4o` para usar um modelo mais capaz.)
-5. Clique em **Deploy** e aguarde alguns segundos.
+**Níveis (marcos garantidos — bateu, ganhou):**
 
-Pronto — a Vercel vai te dar um link público, algo como
-`https://bussola-financeira.vercel.app`. Esse é o link para compartilhar. ✅
+| Nível | Pontos | Nome |
+|---|---|---|
+| 1 | 0 | Iniciante |
+| 2 | 300 | Organizado |
+| 3 | 800 | No controle |
+| 4 | 1.500 | Construtor |
+| 5 | 2.500 | Referência |
 
-> Cada vez que você alterar o prompt (ou qualquer arquivo) e enviar para o GitHub,
-> a Vercel republica sozinha.
-
----
-
-## Passo 4 — Ligue o banco de dados (histórico de conversas)
-
-O histórico é guardado num banco **Upstash Redis**, que se instala pela própria Vercel:
-
-1. No painel do projeto, abra a aba **Storage**.
-2. Clique em **Create Database** → escolha **Upstash → Redis** (Marketplace) e siga o
-   assistente (pode deixar a Vercel gerenciar a conta Upstash para você — tem plano gratuito).
-3. Ao final, conecte o banco ao projeto. A Vercel cria **sozinha** as variáveis
-   `KV_REST_API_URL` e `KV_REST_API_TOKEN` — você não precisa digitá-las.
-4. Clique em **Redeploy** (aba *Deployments* → menu do último deploy → *Redeploy*) para
-   o site passar a enxergar o banco.
-
-A partir daí, toda conversa fica registrada automaticamente.
-
-> Sem esse passo o site continua funcionando normalmente — apenas não grava o histórico.
-
-### Como o Marco acessa o histórico
-
-Abra `https://SEU-SITE.vercel.app/historico.html`, digite a `ADMIN_PASSWORD` e navegue
-pelas conversas (mais recentes primeiro). É uma página interna, sem link visível no site
-público e marcada para não aparecer em buscadores.
-
-### Sobre privacidade (LGPD)
-
-As conversas podem conter informações financeiras das pessoas. Como boa prática: use uma
-senha forte, avise os usuários de que as conversas podem ser registradas para melhoria do
-atendimento, e evite pedir dados pessoais sensíveis (o prompt já orienta a não pedir CPF,
-senhas, número de cartão etc.). Se for oferecer isso ao público, vale ter uma política de
-privacidade simples explicando o uso.
+Cumprir todas as missões uma vez rende ~1.725 pontos. Os níveis 4 e 5 exigem **constância**
+(check-ins semanais, dívidas quitadas, reserva mantida) — não dá para chegar lá só clicando.
 
 ---
 
-## Testar na sua máquina (opcional)
+## Como o colaborador comprova o que fez
 
-```bash
-npm i -g vercel      # instala a CLI da Vercel
-vercel dev           # roda o site + a função localmente
-```
-Crie um arquivo `.env.local` (baseado em `.env.example`) com sua `OPENAI_API_KEY`.
-Abrir só o `index.html` direto no navegador **não** funciona, porque a parte que fala
-com o GPT precisa do servidor (`vercel dev` ou a publicação na Vercel).
+Cinco níveis de rigor, com pontos proporcionais:
+
+| Tipo | Como comprova | Quem aprova |
+|---|---|---|
+| `form` | preenche um formulário estruturado (orçamento, dívidas, plano) | **o GPT confere a coerência** e libera na hora |
+| `quiz` | acerta as perguntas da lição | automático |
+| `checkin` | autodeclaração semanal (vale pouco, mas gera sequência) | automático |
+| `proof` | envia foto/PDF (acordo, extrato, quitação) | **o gestor aprova** — só então os pontos entram |
+
+A ideia central: **a prova nasce do próprio ato**. A missão "monte seu orçamento" não é
+cumprida dizendo "montei" — é cumprida preenchendo o orçamento ali dentro. O preenchimento
+é a prova. O GPT recusa preenchimentos aleatórios (ex.: "111, 111, 111").
+
+Reforços contra fraude, sem burocracia:
+- **Consistência no tempo** — os check-ins repetem os mesmos números por semanas; uma história
+  inventada não se sustenta, e o gestor enxerga saltos incoerentes.
+- **Comprovante só onde vale prêmio** — as missões de maior pontuação exigem documento.
+- **Gancho para o RH** — há um campo "validado pelo RH" no painel, para quando a fábrica
+  confirmar se pode conferir consignado/adiantamento pela folha (a prova mais forte e barata
+  que existe nesse contexto).
 
 ---
 
-## "Conectar ao GPT" — os dois sentidos
+## Publicação
 
-Este projeto usa a **API do GPT (OpenAI)**: o site envia o seu prompt + a mensagem do
-usuário e recebe a resposta. É o caminho para ter um site próprio, com link público.
+### Passo 1 — GitHub
+Crie um repositório e suba todos os arquivos (dá para arrastar em *Add file → Upload files*).
 
-Se em vez disso você quisesse um **GPT personalizado dentro do ChatGPT** (na loja de GPTs),
-esse é outro produto — ele vive dentro do ChatGPT e não vira um site com link próprio.
-Para um ambiente público na web, como você pediu, a API é o caminho certo.
+### Passo 2 — Vercel
+1. https://vercel.com → **Add New… → Project** → selecione o repositório.
+2. Em **Environment Variables**, adicione:
+
+   | Name | Valor |
+   |---|---|
+   | `OPENAI_API_KEY` | sua chave `sk-...` da OpenAI |
+   | `ADMIN_PASSWORD` | senha do painel do gestor |
+
+3. **Deploy**.
+
+### Passo 3 — Banco de dados (obrigatório)
+Sem ele, ninguém consegue nem se cadastrar.
+
+1. No projeto, aba **Storage → Create Database**.
+2. Escolha **Upstash → Redis** (Marketplace; tem plano gratuito).
+3. Conecte ao projeto — a Vercel cria sozinha `KV_REST_API_URL` e `KV_REST_API_TOKEN`.
+4. **Redeploy** (Deployments → menu do último deploy → Redeploy).
+
+### Passo 4 — Cadastre os prêmios
+Abra `https://SEU-SITE.vercel.app/gestor.html`, entre com a `ADMIN_PASSWORD` e vá em
+**Prêmios**. Preencha os níveis 2 a 5. Enquanto estiverem vazios, o colaborador vê apenas
+"os prêmios estão sendo definidos" — e continua acumulando pontos normalmente.
 
 ---
 
-## Identidade visual e parceria
+## Os dois endereços
 
-O site já vem com a identidade da **Engeval** (paleta azul + o logotipo em
-`assets/logo-engeval.png`) e um co-branding de parceria no cabeçalho e no rodapé.
+| Quem | Endereço | Acesso |
+|---|---|---|
+| Colaborador | `SEU-SITE.vercel.app` | matrícula + PIN (ele mesmo cria no 1º acesso) |
+| Gestor | `SEU-SITE.vercel.app/gestor.html` | `ADMIN_PASSWORD` |
 
-- **Marca pessoal (Marco Souza):** já aparece no cabeçalho (`class="personal-name"`) e no
-  rodapé do `index.html`, em co-branding com a Engeval. Se o Marco tiver um logotipo próprio,
-  coloque o arquivo em `assets/` e substitua o texto `Marco Souza` por uma `<img>` — há um
-  comentário no código marcando o ponto exato.
-- **Logotipo Engeval:** está em `assets/logo-engeval.png`. Para trocar por outra versão
-  (ex.: fundo branco), substitua esse arquivo mantendo o nome.
+O painel do gestor não tem link no site do colaborador e está marcado para não aparecer
+em buscadores.
 
-## Personalização rápida
+---
 
-- **Textos e boas-vindas:** edite o cabeçalho e a seção de boas-vindas no `index.html`.
-- **Sugestões iniciais:** altere os botões dentro de `<div class="chips">`.
-- **Cores:** ajuste as variáveis no topo do `<style>` (`--blue`, `--blue-deep`,
-  `--cyan`, etc.) — são as cores da Engeval.
-- **Modelo do GPT:** variável `OPENAI_MODEL` na Vercel.
+## Privacidade (importante)
+
+O gestor **vê as conversas e os comprovantes** — foi a opção escolhida. Por isso:
+
+- A tela de login **avisa isso de forma explícita** ao colaborador, antes de ele entrar.
+  Não remova esse aviso: além do risco legal (LGPD), a confiança do programa depende dele.
+- O prompt do Orientador **nunca pede** CPF, senha, número de cartão ou código de SMS.
+- Recomendo ter uma política de privacidade simples e comunicar o programa abertamente
+  (o que é registrado, quem vê, para quê).
+
+---
+
+## Ajustar o programa
+
+Quase tudo está em **`lib/missions.js`**:
+- mudar pontos de uma missão → campo `points`
+- criar/remover missões → edite o array `missions` de cada trilha
+- mudar as faixas de nível → array `LEVELS`
+- mudar o bônus de sequência → `STREAK_BONUS`
+
+O prompt do Orientador está em `api/chat.js`, dentro de `SYSTEM_PROMPT`.
