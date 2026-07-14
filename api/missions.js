@@ -12,7 +12,7 @@
 import crypto from 'node:crypto';
 import {
   sessionUser, saveUser, saveSubmission, listSubmissions,
-  saveFile, getPrizes, dbReady,
+  saveFile, getPrizes, customFor, dbReady,
 } from '../lib/store.js';
 import { publicCatalog, findMission, levelFor, STREAK_BONUS } from '../lib/missions.js';
 import { publicUser } from './auth.js';
@@ -71,17 +71,36 @@ export default async function handler(req, res) {
 
   /* ---------------- Estado ---------------- */
   if (req.method === 'GET') {
-    const [subs, prizes] = await Promise.all([
-      listSubmissions({ matricula: user.matricula, limit: 100 }),
+    const [subs, prizes, custom] = await Promise.all([
+      listSubmissions({ matricula: user.matricula, limit: 150 }),
       getPrizes(),
+      customFor(user.matricula),
     ]);
+
+    const tracks = publicCatalog();
+
+    // Missões criadas pelo gestor especialmente para este colaborador
+    if (custom.length) {
+      tracks.push({
+        id: 'especiais',
+        name: 'Missões especiais',
+        intro: 'Missões definidas pelo gestor do programa para você.',
+        missions: custom.map(m => ({
+          id: m.id, title: m.title, desc: m.desc, points: m.points,
+          type: m.type, repeatable: !!m.repeatable,
+          fields: m.fields, proofHint: m.proofHint, custom: true,
+        })),
+      });
+    }
+
     return res.status(200).json({
       user: publicUser(user),
-      tracks: publicCatalog(),
+      tracks,
       prizes,
       submissions: subs.map(s => ({
-        id: s.id, missionId: s.missionId, status: s.status,
-        points: s.points, createdAt: s.createdAt, note: s.note || '',
+        id: s.id, missionId: s.missionId, missionTitle: s.missionTitle,
+        status: s.status, points: s.points, createdAt: s.createdAt,
+        note: s.note || '', data: s.data || {}, hasFile: !!s.fileId,
       })),
     });
   }
@@ -91,10 +110,18 @@ export default async function handler(req, res) {
   /* ---------------- Envio ---------------- */
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-    const found = findMission(body.missionId);
-    if (!found) return res.status(400).json({ error: 'Missão não encontrada.' });
 
-    const { mission } = found;
+    // A missão pode vir do catálogo padrão ou ser uma missão especial do gestor.
+    let mission = null;
+    const found = findMission(body.missionId);
+    if (found) {
+      mission = found.mission;
+    } else {
+      const custom = await customFor(user.matricula);
+      mission = custom.find(m => m.id === body.missionId) || null;
+    }
+    if (!mission) return res.status(400).json({ error: 'Missão não encontrada ou não atribuída a você.' });
+    const isCustom = !found;
     const done = user.done || {};
     if (done[mission.id] && !mission.repeatable) {
       return res.status(409).json({ error: 'Você já concluiu esta missão.' });
@@ -108,6 +135,8 @@ export default async function handler(req, res) {
       missionId: mission.id,
       missionTitle: mission.title,
       type: mission.type,
+      missionPoints: mission.points,
+      custom: isCustom,
       data,
       points: 0,
       status: 'pendente',
@@ -171,6 +200,7 @@ export default async function handler(req, res) {
       await saveFile(fileId, body.file);
       sub.fileId = fileId;
       sub.fileName = String(body.fileName || 'comprovante');
+      sub.fileMime = body.file.slice(5, body.file.indexOf(';')) || 'image/jpeg';
       sub.status = 'pendente';   // pontos só depois da aprovação
       sub.points = 0;
       await saveSubmission(sub);

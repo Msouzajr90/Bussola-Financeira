@@ -111,6 +111,20 @@
   .m-tag{ font-size:11px; font-weight:600; padding:4px 9px; border-radius:999px; }
   .m-tag.done{ background:var(--ok-bg); color:#0F6E56; }
   .m-tag.wait{ background:var(--warn-bg); color:#854F0B; }
+  .m-tag.bad{ background:#FCEBEB; color:#A32D2D; }
+  .m-tag.esp{ background:#EEEDFE; color:#3C3489; }
+
+  /* Concluídas */
+  .feito{ padding:14px 18px; border-bottom:1px solid var(--line); }
+  .feito:last-child{ border-bottom:none; }
+  .fh{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+  .ft{ font-size:14.5px; font-weight:600; flex:1; }
+  .fw{ font-size:12px; color:var(--muted); margin-top:3px; }
+  .fb{ background:var(--paper); border:1px solid var(--line); border-radius:9px;
+    padding:10px 12px; margin-top:9px; font-size:13px; line-height:1.6; }
+  .fd{ margin-bottom:3px; } .fd:last-child{ margin-bottom:0; }
+  .fd b{ color:var(--blue-deep); font-weight:600; }
+  .fn{ font-size:12.5px; color:var(--muted); margin-top:8px; font-style:italic; }
 
   /* Prêmios */
   .prize{ display:flex; gap:12px; align-items:flex-start; padding:14px 18px; border-bottom:1px solid var(--line); }
@@ -258,12 +272,16 @@
 
     <div class="nav">
       <button type="button" class="on" data-view="missoes">Missões</button>
+      <button type="button" data-view="feitas">Concluídas</button>
       <button type="button" data-view="chat">Orientador</button>
       <button type="button" data-view="premios">Prêmios</button>
     </div>
 
     <!-- Missões -->
     <div id="vMissoes"><div class="empty">Carregando…</div></div>
+
+    <!-- Concluídas -->
+    <div id="vFeitas" style="display:none"></div>
 
     <!-- Chat -->
     <div id="vChat" style="display:none">
@@ -306,7 +324,7 @@
 <script>
 (function(){
   const $ = id => document.getElementById(id);
-  let token = null, state = null, chatHist = [], busy = false, mode = 'login', current = null, fileData = null;
+  let token = null, state = null, chatHist = [], busy = false, mode = 'login', current = null, fileData = null, fileName = '';
 
   const OPTS = ['Tenho uma dúvida sobre dinheiro','Quero organizar minhas finanças','Estou com dívidas',
                 'Quero começar a guardar dinheiro','Quero fazer um planejamento','Quero comparar duas opções'];
@@ -371,7 +389,7 @@
     $('userbox').style.display='flex';
     $('uName').textContent = state.user.nome;
     $('uMat').textContent = 'Matrícula ' + state.user.matricula;
-    renderHero(); renderMissions(); renderPrizes();
+    renderHero(); renderMissions(); renderFeitas(); renderPrizes();
     if(!chatHist.length) initChat();
   }
 
@@ -409,14 +427,59 @@
         else if(pend){ icon = '<div class="m-icon wait">⏱</div>'; right = '<span class="m-tag wait">Em análise</span>'; }
         else { right = '<button class="m-go" data-m="'+m.id+'">Fazer</button>'; }
         const extra = (m.repeatable && feito) ? ' · feita '+feito+'x' : '';
+        const esp = m.custom ? ' <span class="m-tag esp">Especial</span>' : '';
         return '<div class="mission">'+icon+
-          '<div class="m-body"><div class="t">'+esc(m.title)+'</div>'+
+          '<div class="m-body"><div class="t">'+esc(m.title)+esp+'</div>'+
           '<div class="d">'+esc(m.desc)+extra+'</div></div>'+
           '<span class="m-pts">+'+m.points+'</span>'+right+'</div>';
       }).join('');
       return '<div class="track"><div class="track-head"><h3>'+esc(t.name)+'</h3><p>'+esc(t.intro)+'</p></div>'+rows+'</div>';
     }).join('');
     document.querySelectorAll('[data-m]').forEach(b=> b.onclick = ()=> openMission(b.dataset.m));
+  }
+
+  function renderFeitas(){
+    const subs = (state.submissions||[]).slice().sort((a,b)=>b.createdAt-a.createdAt);
+    const ok = subs.filter(s=>s.status==='aprovado');
+    const pend = subs.filter(s=>s.status==='pendente');
+    const rec = subs.filter(s=>s.status==='recusado');
+
+    if(!subs.length){
+      $('vFeitas').innerHTML = '<div class="track"><div class="empty">Você ainda não concluiu nenhuma missão. Comece pela aba <b>Missões</b> — a primeira já vale 50 pontos.</div></div>';
+      return;
+    }
+
+    const card = s => {
+      const dados = Object.entries(s.data||{})
+        .filter(([k])=>k!=='answers')
+        .map(([k,v])=> v ? '<div class="fd"><b>'+esc(k)+':</b> '+esc(String(v))+'</div>' : '')
+        .join('');
+      const tag = s.status==='aprovado' ? '<span class="m-tag done">+'+s.points+' pts</span>'
+                : s.status==='pendente' ? '<span class="m-tag wait">Em análise</span>'
+                : '<span class="m-tag bad">Não aprovada</span>';
+      return '<div class="feito"><div class="fh"><span class="ft">'+esc(s.missionTitle||'Missão')+'</span>'+tag+'</div>'+
+        '<div class="fw">'+ new Date(s.createdAt).toLocaleDateString('pt-BR') +
+        (s.hasFile ? ' · comprovante enviado' : '') + '</div>'+
+        (dados ? '<div class="fb">'+dados+'</div>' : '')+
+        (s.note ? '<div class="fn">'+esc(s.note)+'</div>' : '')+
+        '</div>';
+    };
+
+    let h = '<div class="track"><div class="track-head"><h3>Minhas conquistas</h3>'+
+      '<p>'+ok.length+' missão(ões) aprovada(s)'+(pend.length?' · '+pend.length+' em análise':'')+'</p></div>'+
+      (ok.length ? ok.map(card).join('') : '<div class="empty">Nenhuma missão aprovada ainda.</div>')+'</div>';
+
+    if(pend.length){
+      h += '<div class="track"><div class="track-head"><h3>Aguardando aprovação</h3>'+
+        '<p>O gestor está analisando. Os pontos entram assim que for aprovado.</p></div>'+
+        pend.map(card).join('')+'</div>';
+    }
+    if(rec.length){
+      h += '<div class="track"><div class="track-head"><h3>Não aprovadas</h3>'+
+        '<p>Você pode tentar de novo — sem perder pontos.</p></div>'+
+        rec.map(card).join('')+'</div>';
+    }
+    $('vFeitas').innerHTML = h;
   }
 
   function renderPrizes(){
@@ -441,9 +504,11 @@
     b.onclick = ()=>{
       document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on'));
       b.classList.add('on');
-      $('vMissoes').style.display = b.dataset.view==='missoes' ? 'block':'none';
-      $('vChat').style.display    = b.dataset.view==='chat'    ? 'block':'none';
-      $('vPremios').style.display = b.dataset.view==='premios' ? 'block':'none';
+      const v = b.dataset.view;
+      $('vMissoes').style.display = v==='missoes' ? 'block':'none';
+      $('vFeitas').style.display  = v==='feitas'  ? 'block':'none';
+      $('vChat').style.display    = v==='chat'    ? 'block':'none';
+      $('vPremios').style.display = v==='premios' ? 'block':'none';
     };
   });
 
@@ -494,6 +559,7 @@
   // Comprime a imagem no navegador para não estourar o banco.
   function handleFile(file){
     if(!file) return;
+    fileName = file.name || 'comprovante';
     if(file.type === 'application/pdf'){
       if(file.size > 900000){ toast('PDF muito grande. Tente uma foto.'); return; }
       const r = new FileReader();
@@ -543,7 +609,7 @@
     $('mSend').disabled = true; $('mSend').textContent = 'Enviando…';
     try{
       const j = await api('/api/missions', { method:'POST', body: JSON.stringify({
-        missionId: m.id, data, file, fileName: 'comprovante' }) });
+        missionId: m.id, data, file, fileName }) });
 
       if(j.ok === false){ toast(j.message || 'Revise o preenchimento.'); return; }
 
@@ -556,7 +622,7 @@
         if(j.levelUp) setTimeout(()=> toast('🎉 Você subiu para o Nível ' + j.levelUp.level + ' — ' + j.levelUp.name + '!'), 1200);
       }
       state = await api('/api/missions');
-      renderHero(); renderMissions(); renderPrizes();
+      renderHero(); renderMissions(); renderFeitas(); renderPrizes();
     }catch(err){ toast(err.message); }
     finally{ $('mSend').disabled=false; $('mSend').textContent = m.type==='proof'?'Enviar comprovante':'Enviar'; }
   };
