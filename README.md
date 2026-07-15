@@ -88,6 +88,18 @@ entram. As respostas do quiz ficam no servidor, nunca no navegador.
 Cada aula tem um campo opcional de **pré-requisito** (liberar uma missão só depois da aula),
 pronto para quando você quiser usar.
 
+
+## Segurança de acesso e backup
+
+- **Bloqueio por tentativas:** após 5 PINs errados, o acesso daquela matrícula fica bloqueado
+  por 15 minutos (evita adivinhação do PIN de um colega).
+- **Recuperação de PIN:** se alguém esquece o PIN, o gestor abre a ficha do colaborador
+  (aba Colaboradores → Ver ficha) e clica em **Redefinir PIN**. No próximo acesso, a pessoa
+  cria um PIN novo com a mesma matrícula — o progresso é mantido.
+- **Backup:** botão **💾 Backup** no topo do painel baixa um `.json` com colaboradores,
+  pontos, envios, aulas, prêmios e conversas. Guarde-o com cuidado (contém dados financeiros).
+  Por segurança, o backup NÃO inclui os PINs; numa restauração, cada pessoa define um novo PIN.
+
 ---
 
 ## Publicação

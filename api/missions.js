@@ -12,10 +12,9 @@
 import crypto from 'node:crypto';
 import {
   sessionUser, saveUser, saveSubmission, listSubmissions,
-  saveFile, getPrizes, customFor, dbReady,
+  saveFile, getPrizes, customFor, countUsers, dbReady,
 } from '../lib/store.js';
-import { publicCatalog, findMission, levelFor, STREAK_BONUS } from '../lib/missions.js';
-import { publicUser } from './auth.js';
+import { publicCatalog, findMission, levelFor, STREAK_BONUS, publicUser } from '../lib/missions.js';
 
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
@@ -71,10 +70,11 @@ export default async function handler(req, res) {
 
   /* ---------------- Estado ---------------- */
   if (req.method === 'GET') {
-    const [subs, prizes, custom] = await Promise.all([
+    const [subs, prizes, custom, comunidade] = await Promise.all([
       listSubmissions({ matricula: user.matricula, limit: 150 }),
       getPrizes(),
       customFor(user.matricula),
+      countUsers(),
     ]);
 
     const tracks = publicCatalog();
@@ -97,6 +97,7 @@ export default async function handler(req, res) {
       user: publicUser(user),
       tracks,
       prizes,
+      comunidade,
       submissions: subs.map(s => ({
         id: s.id, missionId: s.missionId, missionTitle: s.missionTitle,
         status: s.status, points: s.points, createdAt: s.createdAt,

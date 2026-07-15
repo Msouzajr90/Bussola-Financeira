@@ -130,6 +130,7 @@
 
   /* ficha */
   .ficha-head{ display:flex; align-items:center; gap:14px; padding:18px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .ficha-acts{ width:100%; padding-top:14px; margin-top:4px; border-top:1px solid var(--line); display:flex; align-items:center; }
   .ficha-head .bg{ width:52px; height:52px; border-radius:50%; background:var(--orb); color:#fff;
     display:grid; place-items:center; font-family:'Archivo',sans-serif; font-weight:800; font-size:20px; }
   .ficha-head .nm{ font-family:'Archivo',sans-serif; font-weight:800; font-size:18px; color:var(--blue-dark); }
@@ -237,6 +238,7 @@
       <button type="button" data-v="premios">Prêmios</button>
       <span class="spacer"></span>
       <button type="button" id="csv">⬇ Exportar CSV</button>
+      <button type="button" id="backup">💾 Backup</button>
       <button type="button" id="reload">Atualizar</button>
       <button type="button" id="exit">Sair</button>
     </div>
@@ -281,6 +283,22 @@
   $('pw').addEventListener('keydown', e=>{ if(e.key==='Enter') login(); });
   $('exit').onclick = ()=>{ key=''; $('pw').value=''; $('dash').style.display='none'; $('gate').style.display='block'; };
   $('reload').onclick = ()=> loadAll().catch(e=>alert(e.message));
+
+  /* ---------- backup do banco ---------- */
+  $('backup').onclick = async ()=>{
+    const b = $('backup'); const txt = b.textContent; b.disabled=true; b.textContent='Gerando…';
+    try{
+      const data = await api('action=backup');
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'backup_programa_' + new Date().toISOString().slice(0,10) + '.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+      b.textContent = 'Backup salvo ✓';
+      setTimeout(()=>{ b.textContent=txt; b.disabled=false; }, 1800);
+    }catch(err){ alert(err.message); b.textContent=txt; b.disabled=false; }
+  };
 
   async function loadAll(){
     const [d, o, s, f, p, c, l] = await Promise.all([
@@ -399,7 +417,10 @@
           '<div><div class="k">Pontos</div><div class="v">'+u.points+'</div></div>'+
           '<div><div class="k">Missões</div><div class="v">'+u.missoesFeitas+'/'+u.totalMissoes+'</div></div>'+
           '<div><div class="k">Sequência</div><div class="v">'+(u.streak||0)+'</div></div>'+
-        '</div></div>';
+        '</div></div>'+
+        '<div class="ficha-acts"><button class="rowbtn" id="resetPin">🔑 Redefinir PIN</button>'+
+        '<span id="rpMsg" style="font-size:12.5px;color:var(--muted);margin-left:10px"></span></div>'+
+        '</div>';
 
       // Missões cumpridas, trilha a trilha, com o que foi respondido
       h += j.trilhas.map(t =>
@@ -439,6 +460,15 @@
       $('vPessoas').innerHTML = h;
       $('voltar').onclick = renderPessoas;
       $('verConv').onclick = ()=> loadConv(m);
+      $('resetPin').onclick = async ()=>{
+        if(!confirm('Redefinir o PIN de '+u.nome+'?\n\nO acesso atual deixa de funcionar. No próximo login, esta pessoa vai criar um novo PIN com a mesma matrícula. O progresso é mantido.')) return;
+        const b = $('resetPin'); b.disabled=true; b.textContent='Redefinindo…';
+        try{
+          await api('action=resetPin', { method:'POST', body: JSON.stringify({ matricula: u.matricula }) });
+          $('rpMsg').textContent = 'PIN redefinido. A pessoa cria um novo no próximo acesso.';
+          b.textContent = 'PIN redefinido ✓';
+        }catch(err){ $('rpMsg').textContent = err.message; b.disabled=false; b.textContent='🔑 Redefinir PIN'; }
+      };
       document.querySelectorAll('[data-doc]').forEach(b=> b.onclick = ()=> viewDoc(b.dataset.doc, b));
     }catch(err){
       $('vPessoas').innerHTML = '<div class="panel"><div class="empty">'+esc(err.message)+'</div></div>';

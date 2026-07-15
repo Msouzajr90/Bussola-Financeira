@@ -20,9 +20,10 @@ import {
   getPrizes, setPrizes, dbReady,
   listCustomMissions, saveCustomMission, deleteCustomMission,
   listLessons, saveLesson, deleteLesson,
+  resetPin,
 } from '../lib/store.js';
 import { levelFor, findMission, LEVELS, TRACKS } from '../lib/missions.js';
-import { youtubeId } from './lessons.js';
+import { youtubeId } from '../lib/youtube.js';
 
 function authorized(req) {
   const pass = process.env.ADMIN_PASSWORD;
@@ -241,6 +242,29 @@ export default async function handler(req, res) {
         return res.status(200).json({ prizes: await getPrizes() });
       }
 
+      /* ---------- Backup completo (JSON) ---------- */
+      if (action === 'backup') {
+        const [users, submissions, prizes, customs, lessons] = await Promise.all([
+          listUsers(), listSubmissions({ limit: 5000 }), getPrizes(),
+          listCustomMissions(), listLessons(),
+        ]);
+        // Conversas de cada colaborador
+        const conversas = {};
+        for (const u of users) {
+          const c = await getConversation(u.matricula);
+          if (c) conversas[u.matricula] = c;
+        }
+        // Remove salt/hash do backup (dados sensíveis); progresso é preservado.
+        const usersSafe = users.map(({ salt, hash, ...rest }) => rest);
+        return res.status(200).json({
+          geradoEm: new Date().toISOString(),
+          versao: 1,
+          totais: { colaboradores: users.length, envios: submissions.length, aulas: lessons.length },
+          users: usersSafe,
+          submissions, prizes, customMissions: customs, lessons, conversas,
+        });
+      }
+
       /* ---------- Aulas (área educacional) ---------- */
       if (action === 'lessons') {
         const [lessons, users] = await Promise.all([listLessons(), listUsers()]);
@@ -403,6 +427,12 @@ export default async function handler(req, res) {
       if (action === 'lessonDelete') {
         if (!body.id) return res.status(400).json({ error: 'Aula não informada.' });
         await deleteLesson(String(body.id));
+        return res.status(200).json({ ok: true });
+      }
+
+      if (action === 'resetPin') {
+        const u = await resetPin(body.matricula);
+        if (!u) return res.status(404).json({ error: 'Colaborador não encontrado.' });
         return res.status(200).json({ ok: true });
       }
 

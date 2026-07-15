@@ -68,7 +68,8 @@
 
   /* ---------- Painel ---------- */
   .hero{ background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:22px;
-    box-shadow:var(--shadow); margin-bottom:18px; }
+    box-shadow:var(--shadow); margin-bottom:14px; }
+  .greet{ font-family:'Archivo',sans-serif; font-weight:700; font-size:16px; color:var(--blue-deep); margin-bottom:14px; }
   .hero-top{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
   .badge{ width:62px; height:62px; border-radius:50%; background:var(--orb); color:#fff; flex:0 0 auto;
     display:grid; place-items:center; font-family:'Archivo',sans-serif; font-weight:800; font-size:23px;
@@ -81,6 +82,72 @@
   .bar{ height:9px; background:var(--paper); border-radius:999px; overflow:hidden; margin-top:16px; border:1px solid var(--line); }
   .bar > i{ display:block; height:100%; background:var(--orb); border-radius:999px; transition:width .5s; }
   .bar-lbl{ display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-top:7px; }
+
+  /* Sequência semanal */
+  .streakcard{ border-radius:16px; padding:16px 18px; margin-bottom:14px; box-shadow:var(--shadow);
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .streakcard.on{ background:linear-gradient(120deg,#FFF4E2,#FFE9CC); border:1px solid #F0C78A; }
+  .streakcard.warn{ background:linear-gradient(120deg,#FDE9D6,#FBD9B4); border:1px solid #E9A85C; }
+  .streakcard.off{ background:var(--surface); border:1px solid var(--line); }
+  .streak-fire{ font-size:30px; flex:0 0 auto; line-height:1; }
+  .streak-txt{ flex:1 1 180px; }
+  .streak-txt .st-n{ font-family:'Archivo',sans-serif; font-weight:800; font-size:18px; color:#8A5212; }
+  .streakcard.off .st-n{ color:var(--blue-dark); }
+  .streak-txt .st-d{ font-size:13px; color:#7A5418; margin-top:2px; line-height:1.4; }
+  .streakcard.off .st-d{ color:var(--muted); }
+  .streak-btn{ flex:0 0 auto; font-size:13.5px; font-weight:600; color:#fff; background:var(--orb);
+    border:none; border-radius:10px; padding:10px 16px; cursor:pointer; box-shadow:0 3px 10px rgba(0,120,192,.3); }
+  .streak-btn:hover{ filter:brightness(1.05); }
+
+  /* Próximo passo */
+  .nextstep{ background:var(--surface); border:1px solid var(--line); border-left:4px solid var(--blue);
+    border-radius:14px; padding:15px 18px; margin-bottom:14px; box-shadow:var(--shadow);
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .nextstep .ns-i{ flex:1 1 180px; }
+  .nextstep .ns-k{ font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .nextstep .ns-t{ font-size:15.5px; font-weight:600; color:var(--ink); margin-top:3px; }
+  .nextstep .ns-p{ font-size:12.5px; color:var(--blue); font-weight:600; margin-top:2px; }
+  .nextstep .ns-go{ flex:0 0 auto; font-size:14px; font-weight:600; color:#fff; background:var(--blue-dark);
+    border:none; border-radius:10px; padding:10px 18px; cursor:pointer; }
+  .nextstep .ns-go:hover{ background:var(--blue-deep); }
+
+  /* Impacto concreto */
+  .impact{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px 18px;
+    margin-bottom:14px; box-shadow:var(--shadow); }
+  .impact h4{ font-family:'Archivo',sans-serif; font-weight:700; font-size:14px; color:var(--blue-dark); margin:0 0 12px; }
+  .impact-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  @media (max-width:520px){ .impact-grid{ grid-template-columns:1fr; } }
+  .imp{ display:flex; gap:11px; align-items:center; background:var(--paper); border:1px solid var(--line);
+    border-radius:11px; padding:11px 13px; }
+  .imp .ic{ font-size:20px; flex:0 0 auto; }
+  .imp .tx .v{ font-family:'Archivo',sans-serif; font-weight:800; font-size:15px; color:var(--blue-dark); line-height:1.15; }
+  .imp .tx .l{ font-size:12px; color:var(--muted); margin-top:2px; line-height:1.35; }
+
+  /* Pertencimento */
+  .belong{ text-align:center; font-size:13.5px; color:var(--blue-deep); background:#EAF4FB;
+    border:1px solid #CFE6F5; border-radius:12px; padding:12px 16px; margin-bottom:16px; font-weight:500; }
+  .belong b{ font-family:'Archivo',sans-serif; }
+
+  /* Comemoração de nível */
+  .levelup{ position:fixed; inset:0; background:rgba(0,40,70,.75); display:none; align-items:center;
+    justify-content:center; padding:22px; z-index:80; overflow:hidden; }
+  .levelup.on{ display:flex; }
+  .lu-card{ position:relative; background:var(--surface); border-radius:22px; padding:34px 30px; text-align:center;
+    max-width:360px; width:100%; box-shadow:0 24px 70px rgba(0,32,54,.5); animation:pop .5s cubic-bezier(.2,1.3,.4,1); z-index:2; }
+  @keyframes pop{ 0%{ transform:scale(.7); opacity:0; } 100%{ transform:scale(1); opacity:1; } }
+  .lu-badge{ width:88px; height:88px; border-radius:50%; background:var(--orb); color:#fff; margin:0 auto 16px;
+    display:grid; place-items:center; font-family:'Archivo',sans-serif; font-weight:800; font-size:38px;
+    box-shadow:0 8px 26px rgba(0,120,192,.5); animation:badgein .7s .15s both cubic-bezier(.2,1.4,.4,1); }
+  @keyframes badgein{ 0%{ transform:scale(0) rotate(-40deg); } 100%{ transform:scale(1) rotate(0); } }
+  .lu-eyebrow{ font-size:12.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--gold, #C69749); }
+  .lu-name{ font-family:'Archivo',sans-serif; font-weight:800; font-size:27px; color:var(--blue-dark); margin:4px 0 8px; letter-spacing:-.01em; }
+  .lu-msg{ font-size:14px; color:var(--muted); line-height:1.5; margin-bottom:22px; }
+  .lu-btn{ width:100%; font-weight:600; font-size:15px; color:#fff; background:var(--orb); border:none;
+    border-radius:12px; padding:13px; cursor:pointer; box-shadow:0 3px 12px rgba(0,120,192,.35); }
+  .lu-btn:hover{ filter:brightness(1.05); }
+  .confetti{ position:absolute; inset:0; z-index:1; pointer-events:none; }
+  .confetti i{ position:absolute; top:-12px; width:9px; height:14px; opacity:.9; animation:fall linear forwards; }
+  @keyframes fall{ to{ transform:translateY(105vh) rotate(720deg); opacity:.4; } }
 
   .nav{ display:flex; gap:8px; margin-bottom:16px; }
   .nav button{ flex:1; padding:11px; border:1px solid var(--line); background:var(--surface); border-radius:11px;
@@ -267,18 +334,30 @@
   <!-- ===================== PAINEL ===================== -->
   <section id="app" style="display:none">
 
-    <div class="hero">
+    <div class="hero" id="hero">
+      <div class="greet" id="hGreet">Bom te ver!</div>
       <div class="hero-top">
         <div class="badge" id="hBadge">1</div>
         <div class="hero-txt">
           <div class="lvl" id="hLevel">Iniciante</div>
           <div class="pts" id="hPts">0 pontos</div>
         </div>
-        <span class="streak" id="hStreak" style="display:none"></span>
       </div>
       <div class="bar"><i id="hBar" style="width:0%"></i></div>
       <div class="bar-lbl"><span id="hNext">—</span><span id="hPct">0%</span></div>
     </div>
+
+    <!-- Sequência semanal (elemento central de retorno) -->
+    <div class="streakcard" id="streakCard" style="display:none"></div>
+
+    <!-- Próximo passo sugerido -->
+    <div class="nextstep" id="nextStep" style="display:none"></div>
+
+    <!-- Impacto concreto e pessoal -->
+    <div class="impact" id="impact" style="display:none"></div>
+
+    <!-- Pertencimento -->
+    <div class="belong" id="belong" style="display:none"></div>
 
     <div class="nav">
       <button type="button" class="on" data-view="missoes">Missões</button>
@@ -335,6 +414,18 @@
 </div>
 <div class="toast" id="toast"></div>
 
+<!-- Comemoração de subida de nível -->
+<div class="levelup" id="levelup">
+  <div class="confetti" id="confetti"></div>
+  <div class="lu-card">
+    <div class="lu-badge" id="luBadge">3</div>
+    <div class="lu-eyebrow">Você subiu de nível!</div>
+    <div class="lu-name" id="luName">No controle</div>
+    <div class="lu-msg" id="luMsg"></div>
+    <button class="lu-btn" id="luBtn" type="button">Continuar</button>
+  </div>
+</div>
+
 <script>
 (function(){
   const $ = id => document.getElementById(id);
@@ -370,19 +461,32 @@
 
   /* ---------- login ---------- */
   $('tabLogin').onclick = ()=>{ mode='login'; $('tabLogin').classList.add('on'); $('tabReg').classList.remove('on');
-    $('nameRow').style.display='none'; $('gGo').textContent='Entrar'; $('gErr').textContent=''; };
+    $('nameRow').style.display='none'; $('gGo').textContent='Entrar'; $('gErr').textContent=''; $('gErr').style.color=''; };
   $('tabReg').onclick = ()=>{ mode='register'; $('tabReg').classList.add('on'); $('tabLogin').classList.remove('on');
-    $('nameRow').style.display='block'; $('gGo').textContent='Criar meu acesso'; $('gErr').textContent=''; };
+    $('nameRow').style.display='block'; $('gGo').textContent='Criar meu acesso'; $('gErr').textContent=''; $('gErr').style.color=''; };
 
   $('gGo').onclick = async ()=>{
     $('gErr').textContent=''; $('gGo').disabled=true;
     try{
       const j = await api('/api/auth', { method:'POST', body: JSON.stringify({
         action: mode, matricula: $('gMat').value, pin: $('gPin').value, nome: $('gNome').value }) });
+
+      // Gestor resetou o PIN: entra no modo "criar novo PIN"
+      if(j.needsNewPin){
+        mode = 'setpin';
+        $('gGo').textContent = 'Salvar novo PIN';
+        $('nameRow').style.display = 'none';
+        $('gPin').value = '';
+        $('gErr').style.color = 'var(--blue-deep)';
+        $('gErr').textContent = 'Seu PIN foi redefinido pelo gestor. Digite um novo PIN de 4 a 8 números.';
+        return;
+      }
+
       token = j.token;
       try{ sessionStorage.setItem('bs_token', token); }catch(e){}
+      $('gErr').style.color = '';
       await boot();
-    }catch(err){ $('gErr').textContent = err.message; }
+    }catch(err){ $('gErr').style.color=''; $('gErr').textContent = err.message; }
     finally{ $('gGo').disabled=false; }
   };
   $('gPin').addEventListener('keydown', e=>{ if(e.key==='Enter') $('gGo').click(); });
@@ -408,7 +512,9 @@
   }
 
   function renderHero(){
-    const L = state.user.level;
+    const u = state.user, L = u.level;
+    const primeiro = (u.nome||'').trim().split(/\s+/)[0] || '';
+    $('hGreet').textContent = primeiro ? ('Bom te ver, ' + primeiro + ' 👋') : 'Bom te ver! 👋';
     $('hBadge').textContent = L.level;
     $('hLevel').textContent = 'Nível ' + L.level + ' — ' + L.name;
     $('hPts').textContent = L.points + ' pontos';
@@ -417,11 +523,163 @@
     $('hNext').textContent = L.nextName
       ? 'Faltam ' + L.toNext + ' pts para o Nível ' + L.nextLevel + ' — ' + L.nextName
       : 'Você chegou ao nível máximo!';
-    const s = state.user.streak || 0;
-    const st = $('hStreak');
-    if(s > 1){ st.style.display='inline-block'; st.textContent = '🔥 ' + s + ' semanas seguidas'; }
-    else st.style.display='none';
+    renderStreak();
+    renderNextStep();
+    renderImpact();
+    renderBelong();
   }
+
+  /* ---- Sequência semanal, com aviso de vencimento ---- */
+  function renderStreak(){
+    const u = state.user;
+    const streak = u.streak || 0;
+    const last = u.lastCheckin || 0;
+    const card = $('streakCard');
+    const dias = last ? (Date.now() - last) / 86400000 : Infinity;
+    let cls, fogo, titulo, desc, btn = true;
+
+    if(!last){
+      cls='off'; fogo='✨';
+      titulo='Comece sua sequência';
+      desc='Faça seu primeiro check-in semanal e comece a construir seu ritmo. Constância vale pontos.';
+    } else if(dias < 6){
+      cls='on'; fogo='🔥';
+      const faltam = Math.ceil(6 - dias);
+      titulo = streak + (streak===1?' semana':' semanas') + ' seguidas';
+      desc = 'Seu próximo check-in libera em ' + faltam + (faltam===1?' dia':' dias') + '. Mantenha o ritmo!';
+      btn = false;
+    } else if(dias <= 10){
+      cls='warn'; fogo='🔥';
+      const prazo = Math.max(1, Math.floor(10 - dias));
+      titulo = 'Não perca sua sequência!';
+      desc = 'Você está há ' + streak + (streak===1?' semana':' semanas') + ' seguidas. Faça o check-in em até ' + prazo + (prazo===1?' dia':' dias') + ' para não zerar. 🔥';
+    } else {
+      cls='off'; fogo='💪';
+      titulo = streak > 0 ? 'Recomece sua sequência' : 'Faça seu check-in';
+      desc = 'Seu check-in desta semana está liberado. Toque para registrar como foi.';
+    }
+
+    card.className = 'streakcard ' + cls;
+    card.innerHTML = '<span class="streak-fire">'+fogo+'</span>'+
+      '<div class="streak-txt"><div class="st-n">'+titulo+'</div><div class="st-d">'+desc+'</div></div>'+
+      (btn ? '<button class="streak-btn" id="stBtn">Fazer check-in</button>' : '');
+    card.style.display = 'flex';
+    if(btn){ $('stBtn').onclick = ()=> openMission('hab_checkin'); }
+  }
+
+  /* ---- Próximo passo sugerido ---- */
+  function renderNextStep(){
+    const done = state.user.done || {};
+    let alvo = null;
+    for(const t of state.tracks){
+      if(t.id === 'habitos') continue; // check-in já vive no card de sequência
+      for(const m of t.missions){
+        const feito = done[m.id] || 0;
+        const pend = subStatus(m.id);
+        if(pend) continue;
+        if(!feito || m.repeatable){ alvo = m; break; }
+      }
+      if(alvo) break;
+    }
+    const el = $('nextStep');
+    if(!alvo){
+      el.innerHTML = '<div class="ns-i"><div class="ns-k">Tudo em dia</div>'+
+        '<div class="ns-t">Você concluiu as missões disponíveis. 🎉</div>'+
+        '<div class="ns-p">Fique de olho nas missões especiais e nas aulas novas.</div></div>';
+      el.style.display='flex';
+      return;
+    }
+    el.innerHTML = '<div class="ns-i"><div class="ns-k">Sua próxima conquista</div>'+
+      '<div class="ns-t">'+esc(alvo.title)+'</div>'+
+      '<div class="ns-p">+'+alvo.points+' pontos</div></div>'+
+      '<button class="ns-go" id="nsGo">Fazer agora</button>';
+    el.style.display='flex';
+    $('nsGo').onclick = ()=> openMission(alvo.id);
+  }
+
+  /* ---- Impacto concreto e pessoal ---- */
+  function money(n){ return 'R$ ' + Number(n||0).toLocaleString('pt-BR'); }
+  function subData(missionId){
+    const s = (state.submissions||[]).find(x=>x.missionId===missionId && x.status==='aprovado' && x.data);
+    return s ? s.data : null;
+  }
+  function renderImpact(){
+    const itens = [];
+
+    // Orçamento organizado
+    const orc = subData('orc_montar');
+    if(orc){
+      const total = ['moradia','contas','alimentacao','transporte','parcelas','outros']
+        .reduce((a,k)=> a + (parseFloat(orc[k])||0), 0);
+      const base = parseFloat(orc.renda) || total;
+      if(base > 0) itens.push(['📊', money(base), 'organizados no seu orçamento']);
+    }
+
+    // Semanas cuidando do dinheiro
+    const created = state.user.createdAt;
+    if(created){
+      const semanas = Math.max(1, Math.floor((Date.now() - created) / (7*86400000)) + 1);
+      itens.push(['🗓️', semanas + (semanas===1?' semana':' semanas'), 'cuidando do seu dinheiro']);
+    }
+
+    // Objetivos traçados
+    const objs = (state.submissions||[]).filter(x=>x.missionId==='obj_criar' && x.status==='aprovado').length;
+    if(objs) itens.push(['🎯', objs + (objs===1?' objetivo':' objetivos'), 'que você definiu']);
+
+    // Meta de reserva
+    const res = subData('res_meta');
+    if(res && parseFloat(res.meta)) itens.push(['🛟', money(res.meta), 'sua meta de reserva']);
+
+    // Dívidas mapeadas
+    if((state.user.done||{})['div_mapear']) itens.push(['🗺️', 'Dívidas no mapa', 'você enfrentou de frente']);
+
+    // Missões concluídas (sempre relevante)
+    const feitas = Object.values(state.user.done||{}).reduce((a,b)=>a+b,0);
+    if(feitas) itens.push(['✅', feitas + (feitas===1?' missão':' missões'), 'concluída(s) até aqui']);
+
+    const el = $('impact');
+    if(!itens.length){ el.style.display='none'; return; }
+    el.innerHTML = '<h4>O que você já conquistou</h4><div class="impact-grid">'+
+      itens.slice(0,4).map(([ic,v,l])=>'<div class="imp"><span class="ic">'+ic+'</span>'+
+        '<div class="tx"><div class="v">'+esc(v)+'</div><div class="l">'+esc(l)+'</div></div></div>').join('')+
+      '</div>';
+    el.style.display='block';
+  }
+
+  /* ---- Pertencimento ---- */
+  function renderBelong(){
+    const n = state.comunidade || 0;
+    const el = $('belong');
+    if(n <= 1){
+      el.innerHTML = '👏 Você está entre os primeiros a começar essa jornada. Chame a galera!';
+    } else {
+      el.innerHTML = '👥 <b>'+n+'</b> colegas já começaram esse caminho com você.';
+    }
+    el.style.display='block';
+  }
+
+  /* ---- Comemoração de subida de nível ---- */
+  function celebrate(level){
+    $('luBadge').textContent = level.level;
+    $('luName').textContent = level.name;
+    $('luMsg').textContent = level.nextName
+      ? 'Você chegou ao Nível ' + level.level + '. Próxima parada: ' + level.nextName + '.'
+      : 'Você alcançou o nível máximo. Que jornada!';
+    // confete
+    const c = $('confetti'); c.innerHTML='';
+    const cores = ['#0078C0','#60B4E4','#C69749','#1D9E75','#E9A85C'];
+    for(let i=0;i<70;i++){
+      const p = document.createElement('i');
+      p.style.left = Math.random()*100 + '%';
+      p.style.background = cores[i % cores.length];
+      p.style.animationDuration = (2 + Math.random()*2) + 's';
+      p.style.animationDelay = (Math.random()*0.6) + 's';
+      p.style.transform = 'rotate('+(Math.random()*360)+'deg)';
+      c.appendChild(p);
+    }
+    $('levelup').classList.add('on');
+  }
+  $('luBtn').onclick = ()=> $('levelup').classList.remove('on');
 
   function subStatus(missionId){
     const s = (state.submissions||[]).filter(x=>x.missionId===missionId);
@@ -637,7 +895,7 @@
         let msg = '+' + j.earned + ' pontos!';
         if(j.bonus) msg += ' (inclui bônus de sequência)';
         toast(msg);
-        if(j.levelUp) setTimeout(()=> toast('🎉 Você subiu para o Nível ' + j.levelUp.level + ' — ' + j.levelUp.name + '!'), 1200);
+        if(j.levelUp) setTimeout(()=> celebrate(j.levelUp), 700);
       }
       state = await api('/api/missions');
       renderHero(); renderMissions(); renderFeitas(); renderPrizes();
@@ -781,7 +1039,7 @@
       if(j.ok === false){ toast(j.message); $('mSend').disabled=false; $('mSend').textContent='Concluir aula'; return; }
       closeLesson();
       toast('+' + j.earned + ' pontos!');
-      if(j.levelUp) setTimeout(()=> toast('🎉 Você subiu para o Nível '+j.levelUp.level+' — '+j.levelUp.name+'!'), 1200);
+      if(j.levelUp) setTimeout(()=> celebrate(j.levelUp), 700);
       state = await api('/api/missions');
       renderHero(); renderMissions(); renderFeitas(); renderPrizes();
       await loadLessons();
