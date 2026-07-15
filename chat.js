@@ -1,375 +1,425 @@
 // ============================================================================
-//  Função de servidor (Vercel) — conversa com o GPT sem expor a sua chave.
-//  A interface (index.html) envia as mensagens para este arquivo em /api/chat,
-//  e ele repassa para a API da OpenAI junto com o SEU prompt.
+//  Painel do gestor — protegido pela senha ADMIN_PASSWORD (cabeçalho x-admin-key).
+//
+//    GET  ?action=dashboard           → indicadores do programa
+//    GET  ?action=overview            → ranking individual
+//    GET  ?action=user&m=123          → ficha completa de um colaborador
+//    GET  ?action=conversation&m=123  → conversa de um colaborador
+//    GET  ?action=submissions         → todos os envios (fila de aprovação)
+//    GET  ?action=files               → pasta de documentos enviados
+//    GET  ?action=file&id=...         → conteúdo de um documento
+//    GET  ?action=prizes              → prêmios cadastrados
+//    POST ?action=review              → aprovar/recusar um comprovante
+//    POST ?action=prizes              → salvar os prêmios
+//    POST ?action=rh                  → marcar validação do RH (folha)
 // ============================================================================
-
-// ┌──────────────────────────────────────────────────────────────────────────┐
-// │  ✅  Seu prompt "Orientador de Finanças Pessoais" já está inserido abaixo.  │
-// │  Para editá-lo no futuro, altere o texto entre as crases (` `).            │
-// └──────────────────────────────────────────────────────────────────────────┘
-const SYSTEM_PROMPT = `
-# PROMPT AUTOEXECUTÁVEL — ORIENTADOR FINANCEIRO SIMPLES
-
-Você é um **Orientador de Finanças Pessoais**.
-
-Sua missão é ajudar pessoas com pouco conhecimento financeiro a:
-
-* tirar dúvidas sobre dinheiro;
-* organizar as finanças;
-* entender dívidas, cartão, empréstimos e parcelamentos;
-* aprender temas financeiros de forma simples;
-* montar planos para guardar dinheiro, quitar dívidas ou realizar objetivos;
-* comparar opções financeiras;
-* tomar decisões melhores no dia a dia.
-
-Use sempre uma linguagem simples, direta, respeitosa e sem julgamentos.
-
----
-
-## 1. Como você deve conversar
-
-Siga estas regras durante toda a conversa:
-
-1. Responda de forma curta, clara e prática.
-2. Evite termos difíceis. Quando usar algum termo financeiro, explique de forma simples.
-3. Faça perguntas quando faltar informação.
-4. Não dê um conselho definitivo antes de entender a situação da pessoa.
-5. Busque informações aos poucos, com uma ou duas perguntas por vez.
-6. Continue conversando até que a pessoa diga que não precisa de mais nada.
-7. Ao final de cada resposta, sempre pergunte algo como:
-"Quer que eu te ajude a analisar isso melhor?"
-ou "Você quer me passar mais algumas informações para eu te orientar com mais segurança?"
-ou "Ficou claro ou quer que eu explique de outro jeito?"
-8. Nunca julgue a pessoa por ter dívidas, gastar mal ou não saber sobre finanças.
-9. Nunca diga que uma dúvida é simples, básica ou óbvia.
-10. Dê conselhos práticos, possíveis e adaptados à realidade da pessoa.
-
----
-
-## 2. Informações que você pode pedir
-
-Você pode pedir informações gerais, como:
-
-* renda mensal aproximada;
-* principais gastos;
-* valor das dívidas;
-* valor das parcelas;
-* taxa de juros, se a pessoa souber;
-* quantidade de parcelas restantes;
-* se existe atraso;
-* valor que a pessoa consegue guardar por mês;
-* objetivo financeiro;
-* prazo para alcançar o objetivo;
-* quantidade de pessoas que dependem da renda.
-
-Nunca peça:
-
-* CPF; RG; senha; número completo do cartão; código de segurança;
-* código recebido por SMS; dados completos da conta bancária;
-* endereço completo; fotos de documentos.
-
-Se a pessoa informar dados sensíveis, oriente com cuidado:
-"Por segurança, não compartilhe senhas, documentos, códigos ou dados completos de cartão e conta bancária."
-
----
-
-## 3. Como responder dúvidas
-
-Quando a pessoa fizer uma pergunta, use este modelo:
-
-### Entendi sua dúvida
-Explique o problema com palavras simples.
-
-### Resposta direta
-Dê uma resposta inicial clara.
-
-### Para te orientar melhor
-Faça uma ou duas perguntas importantes.
-
-### Próximo passo
-Diga o que poderá ser analisado depois que a pessoa responder.
-
----
-
-## 4. Como organizar as finanças da pessoa
-
-Quando a pessoa quiser organizar a vida financeira, faça perguntas aos poucos.
-Comece assim: "Vamos organizar isso com calma. Primeiro preciso entender sua situação atual."
-
-Pergunte:
-1. Quanto entra de dinheiro por mês, aproximadamente?
-2. Quais são seus principais gastos mensais?
-
-Depois, continue conforme a resposta:
-3. Você tem dívidas ou parcelas em andamento?
-4. Sobra algum dinheiro no fim do mês?
-5. Você tem algum objetivo financeiro agora?
-
-Depois de entender a situação, monte um resumo simples:
-
-### Sua situação atual
-* Renda aproximada:
-* Gastos principais:
-* Dívidas:
-* Valor que sobra ou falta:
-* Objetivo:
-
-### O que parece estar acontecendo
-Explique o problema principal.
-
-### Primeiros passos
-Dê no máximo três ações práticas para começar.
-
----
-
-## 5. Como ajudar com dívidas
-
-Quando a pessoa falar sobre dívidas, descubra: tipo da dívida; valor total; valor da parcela;
-se está atrasada; taxa de juros, se souber; quantas parcelas faltam; se existe proposta de
-negociação; quanto ela consegue pagar por mês sem faltar para o básico.
-
-Explique de forma simples:
-* dívidas com juros altos crescem mais rápido;
-* nem sempre a menor parcela é a melhor opção;
-* renegociar pode ajudar, mas é preciso olhar o valor total;
-* o acordo só é bom se a pessoa conseguir pagar até o fim.
-
-Priorize:
-1. despesas essenciais (alimentação, moradia, água, luz e saúde);
-2. dívidas que estão crescendo muito;
-3. dívidas com risco de perda de bem importante;
-4. dívidas atrasadas;
-5. demais dívidas.
-
-Nunca diga apenas "pague tudo" ou "corte todos os gastos". Oriente de forma realista.
-
----
-
-## 6. Como ajudar com cartão de crédito
-
-Explique sempre que: limite do cartão não é renda; compras parceladas comprometem os próximos
-meses; pagar o mínimo da fatura costuma gerar juros altos; o ideal é pagar a fatura completa;
-muitas parcelas pequenas podem virar um problema grande.
-
-Se a pessoa estiver enrolada no cartão, pergunte:
-1. Qual é o valor da fatura atual?
-2. Você consegue pagar a fatura inteira?
-3. Existem parcelas futuras já lançadas?
-4. Você está usando o cartão para completar o salário?
-
-Depois, ajude a montar uma estratégia simples.
-
----
-
-## 7. Como ajudar a guardar dinheiro
-
-Se a pessoa quiser começar a guardar dinheiro, pergunte:
-1. Hoje sobra algum valor no fim do mês?
-2. Qual valor pequeno você conseguiria separar todo mês sem passar aperto?
-
-Explique que começar pequeno é melhor do que não começar.
-Sugira metas simples, como: guardar R$ 20 por semana; guardar R$ 50 por mês; guardar o valor
-de uma conta essencial; montar primeiro uma reserva pequena.
-
-Explique reserva de emergência assim:
-"Reserva de emergência é um dinheiro separado para imprevistos importantes, como problema de
-saúde, desemprego, conserto necessário ou queda de renda."
-
----
-
-## 8. Como ensinar temas financeiros
-
-Quando a pessoa pedir para aprender sobre um tema, explique em três partes:
-
-### O que é
-Explique de forma simples.
-
-### Exemplo do dia a dia
-Use um exemplo comum.
-
-### Cuidado principal
-Mostre o risco ou erro mais comum.
-
-Depois pergunte: "Quer que eu mostre isso com números?" ou "Quer que eu explique como isso
-aparece na sua vida financeira?"
-
----
-
-## 9. Como fazer planejamentos
-
-Quando a pessoa quiser planejar um objetivo, pergunte:
-1. Qual é o objetivo?
-2. Quanto custa aproximadamente?
-3. Quanto você já tem guardado?
-4. Em quanto tempo quer alcançar?
-5. Quanto consegue guardar por mês?
-
-Depois, calcule: quanto falta; quanto precisa guardar por mês; se o prazo é possível; se será
-necessário ajustar o prazo ou o valor mensal.
-
-Apresente o resultado de forma simples:
-### Seu objetivo
-### Quanto falta
-### Quanto precisa guardar por mês
-### Se o plano parece possível
-### O que fazer agora
-
----
-
-## 10. Como comparar alternativas
-
-Quando a pessoa quiser comparar duas opções (pagar à vista ou parcelar, quitar dívida ou
-investir, financiar ou esperar), pergunte: valor de cada opção; prazo; parcela; juros;
-desconto; impacto no orçamento; risco; urgência da decisão.
-
-Depois, responda assim:
-### Opção mais barata
-### Opção mais segura
-### Opção mais flexível
-### Minha orientação, considerando o que você informou
-
-Sempre explique que a melhor decisão depende da realidade da pessoa.
-
----
-
-## 11. Uso de dados reais de mercado
-
-Quando a resposta depender de dados atuais (Selic, CDI, inflação, poupança, Tesouro Direto,
-financiamento, juros de mercado ou regras recentes), busque dados atualizados em fontes
-confiáveis. Priorize: Banco Central do Brasil; Tesouro Direto; Receita Federal; B3; IBGE;
-Governo Federal; instituições financeiras oficiais.
-
-Sempre informe: data da consulta; fonte utilizada; se o número é dado atual, estimativa ou exemplo.
-
-Se não conseguir acessar dados atualizados, diga:
-"Não consigo consultar a taxa atual neste momento. Posso fazer uma simulação com uma taxa
-informada por você ou com um exemplo hipotético."
-
----
-
-## 12. Cuidados com golpes
-
-Sempre alerte a pessoa se aparecerem sinais de golpe, como: promessa de dinheiro fácil; lucro
-garantido; pedido de Pix antecipado; taxa para liberar empréstimo; pedido de senha; pedido de
-código recebido por SMS; boleto suspeito; pressão para decidir rápido; contato de número
-desconhecido dizendo ser do banco.
-
-Oriente: "Antes de pagar ou informar qualquer dado, confirme diretamente nos canais oficiais
-da empresa ou do banco."
-
----
-
-## 13. Limites da orientação
-
-Lembre que sua orientação é educativa. Em casos graves ou complexos, recomende buscar ajuda
-profissional, como: Procon; Defensoria Pública; advogado; contador; planejador financeiro;
-banco ou instituição responsável; órgão de proteção ao consumidor.
-
-Isso vale principalmente para: risco de perder imóvel ou veículo; processo judicial; golpe;
-superendividamento; dívidas muito altas; problemas com impostos; contratos difíceis de entender.
-
----
-
-## 14. Mensagem inicial
-
-A conversa já foi aberta na interface com a saudação e o menu de opções (1 a 6). Portanto,
-NÃO repita a saudação inicial. Ao receber a primeira mensagem da pessoa, siga direto para a
-orientação correspondente, fazendo as perguntas necessárias conforme as seções acima.
-`;
-// ── fim do prompt ───────────────────────────────────────────────────────────
-
-const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-
-// ============================================================================
-//  Banco de dados (Upstash Redis) — grava o histórico de cada conversa.
-//  As credenciais são injetadas pela Vercel ao instalar o Upstash pelo
-//  Marketplace (KV_REST_API_URL / KV_REST_API_TOKEN). Se não estiverem
-//  configuradas, o site funciona normalmente, apenas sem gravar o histórico.
-// ============================================================================
-const REDIS_URL   = process.env.KV_REST_API_URL   || process.env.UPSTASH_REDIS_REST_URL;
-const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-
-async function saveConversation(id, messages) {
-  if (!REDIS_URL || !REDIS_TOKEN || !id) return; // gravação é opcional
-  try {
-    const now = Date.now();
-    const record = JSON.stringify({ id, updatedAt: now, messages });
-    // Salva a conversa e a indexa por data (para listar da mais recente).
-    await fetch(`${REDIS_URL}/pipeline`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${REDIS_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify([
-        ['SET', `conv:${id}`, record],
-        ['ZADD', 'idx:conversations', String(now), id],
-      ]),
-    });
-  } catch (e) {
-    console.error('Falha ao gravar conversa:', e);
-  }
+import crypto from 'node:crypto';
+import {
+  listUsers, getUser, saveUser, getConversation,
+  listSubmissions, getSubmission, saveSubmission, getFile,
+  getPrizes, setPrizes, dbReady,
+  listCustomMissions, saveCustomMission, deleteCustomMission,
+  listLessons, saveLesson, deleteLesson,
+} from '../lib/store.js';
+import { levelFor, findMission, LEVELS, TRACKS } from '../lib/missions.js';
+import { youtubeId } from './lessons.js';
+
+function authorized(req) {
+  const pass = process.env.ADMIN_PASSWORD;
+  if (!pass) return false;
+  const given = req.headers['x-admin-key'] || (req.query && req.query.key);
+  return given === pass;
+}
+
+// Descobre o tipo do arquivo pelo início do dataURL guardado na submissão.
+function mimeOf(sub) {
+  return sub.fileMime || 'image/jpeg';
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Método não permitido.' });
+  if (!process.env.ADMIN_PASSWORD) {
+    return res.status(500).json({ error: 'Defina ADMIN_PASSWORD nas variáveis de ambiente da Vercel.' });
   }
+  if (!authorized(req)) return res.status(401).json({ error: 'Senha incorreta.' });
+  if (!dbReady) return res.status(500).json({ error: 'Banco de dados não configurado.' });
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({
-      error: 'Chave da API não configurada. Defina OPENAI_API_KEY nas variáveis de ambiente da Vercel.'
-    });
-  }
+  const action = (req.query && req.query.action) || '';
 
   try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const messages = body && Array.isArray(body.messages) ? body.messages : null;
-    const conversationId = body && typeof body.conversationId === 'string' ? body.conversationId : null;
+    /* ========================== LEITURA ========================== */
+    if (req.method === 'GET') {
 
-    if (!messages) {
-      return res.status(400).json({ error: 'Formato de mensagens inválido.' });
+      /* ---------- Dashboard ---------- */
+      if (action === 'dashboard') {
+        const [users, subs] = await Promise.all([
+          listUsers(),
+          listSubmissions({ limit: 1000 }),
+        ]);
+
+        const aprovados = subs.filter(s => s.status === 'aprovado');
+        const pendentes = subs.filter(s => s.status === 'pendente');
+        const recusados = subs.filter(s => s.status === 'recusado');
+
+        const total = users.length;
+        const pontosTotais = users.reduce((a, u) => a + (u.points || 0), 0);
+        const ativos = users.filter(u => Object.keys(u.done || {}).length > 0).length;
+
+        // Distribuição por nível
+        const porNivel = LEVELS.map(l => {
+          const qtd = users.filter(u => levelFor(u.points || 0).level === l.level).length;
+          return { level: l.level, name: l.name, total: qtd, pct: total ? Math.round(qtd / total * 100) : 0 };
+        });
+
+        // Conclusão por missão e por trilha
+        const trilhas = TRACKS.map(t => {
+          const missoes = t.missions.map(m => {
+            const feitos = users.filter(u => (u.done || {})[m.id]).length;
+            return {
+              id: m.id, title: m.title, points: m.points, type: m.type,
+              repeatable: !!m.repeatable,
+              concluiram: feitos,
+              pct: total ? Math.round(feitos / total * 100) : 0,
+              vezes: aprovados.filter(s => s.missionId === m.id).length,
+            };
+          });
+          const media = missoes.length
+            ? Math.round(missoes.reduce((a, m) => a + m.pct, 0) / missoes.length) : 0;
+          return { id: t.id, name: t.name, missoes, pct: media };
+        });
+
+        // Conquistas de impacto real
+        const conta = id => aprovados.filter(s => s.missionId === id).length;
+        const conquistas = {
+          dividasQuitadas: conta('div_quitada'),
+          reservasMantidas: conta('res_manter'),
+          objetivosAlcancados: conta('obj_atingir'),
+          orcamentosMontados: conta('orc_montar'),
+          planosQuitacao: conta('div_plano'),
+          registratos: conta('diag_registrato'),
+          checkins: conta('hab_checkin'),
+        };
+
+        // Engajamento
+        const streaks = users.map(u => u.streak || 0);
+        const engajamento = {
+          ativos,
+          inativos: total - ativos,
+          taxaAtivos: total ? Math.round(ativos / total * 100) : 0,
+          mediaPontos: total ? Math.round(pontosTotais / total) : 0,
+          maiorSequencia: streaks.length ? Math.max(...streaks) : 0,
+          comSequencia: users.filter(u => (u.streak || 0) >= 2).length,
+        };
+
+        // Atividade recente
+        const recentes = subs.slice(0, 12).map(s => ({
+          nome: s.nome, matricula: s.matricula, missionTitle: s.missionTitle,
+          status: s.status, points: s.points, createdAt: s.createdAt,
+        }));
+
+        return res.status(200).json({
+          resumo: {
+            colaboradores: total,
+            pontosTotais,
+            missoesConcluidas: aprovados.length,
+            comprovantesPendentes: pendentes.length,
+            comprovantesAprovados: aprovados.filter(s => s.type === 'proof').length,
+            comprovantesRecusados: recusados.length,
+            documentos: subs.filter(s => s.fileId).length,
+          },
+          porNivel, trilhas, conquistas, engajamento, recentes,
+        });
+      }
+
+      /* ---------- Ranking ---------- */
+      if (action === 'overview') {
+        const users = await listUsers();
+        const subs = await listSubmissions({ limit: 500 });
+        const pendentes = subs.filter(s => s.status === 'pendente').length;
+
+        const ranking = users.map(u => ({
+          matricula: u.matricula,
+          nome: u.nome,
+          points: u.points || 0,
+          level: levelFor(u.points || 0),
+          missoes: Object.values(u.done || {}).reduce((a, b) => a + b, 0),
+          streak: u.streak || 0,
+          rhValidado: !!u.rhValidado,
+          createdAt: u.createdAt,
+          lastCheckin: u.lastCheckin || null,
+        })).sort((a, b) => b.points - a.points);
+
+        return res.status(200).json({
+          ranking,
+          resumo: { colaboradores: ranking.length, comprovantesPendentes: pendentes },
+        });
+      }
+
+      /* ---------- Ficha do colaborador: missões cumpridas ---------- */
+      if (action === 'user') {
+        const u = await getUser(req.query.m);
+        if (!u) return res.status(404).json({ error: 'Colaborador não encontrado.' });
+
+        const subs = await listSubmissions({ matricula: u.matricula, limit: 200 });
+        const done = u.done || {};
+
+        // Todas as missões do catálogo, marcando o que foi cumprido
+        const trilhas = TRACKS.map(t => ({
+          id: t.id,
+          name: t.name,
+          missions: t.missions.map(m => {
+            const envios = subs.filter(s => s.missionId === m.id);
+            return {
+              id: m.id,
+              title: m.title,
+              points: m.points,
+              type: m.type,
+              repeatable: !!m.repeatable,
+              vezes: done[m.id] || 0,
+              concluida: (done[m.id] || 0) > 0,
+              pendente: envios.some(s => s.status === 'pendente'),
+              envios: envios.map(s => ({
+                id: s.id, status: s.status, points: s.points,
+                createdAt: s.createdAt, data: s.data || {},
+                fileId: s.fileId || null, note: s.note || '',
+              })),
+            };
+          }),
+        }));
+
+        const feitas = trilhas.flatMap(t => t.missions).filter(m => m.concluida).length;
+        const totalMissoes = TRACKS.reduce((a, t) => a + t.missions.length, 0);
+
+        return res.status(200).json({
+          user: {
+            matricula: u.matricula, nome: u.nome,
+            points: u.points || 0, level: levelFor(u.points || 0),
+            streak: u.streak || 0, lastCheckin: u.lastCheckin || null,
+            createdAt: u.createdAt, rhValidado: !!u.rhValidado,
+            missoesFeitas: feitas, totalMissoes,
+          },
+          trilhas,
+        });
+      }
+
+      if (action === 'conversation') {
+        const conv = await getConversation(req.query.m);
+        if (!conv) return res.status(404).json({ error: 'Sem conversa registrada.' });
+        return res.status(200).json({ conversation: conv });
+      }
+
+      if (action === 'submissions') {
+        return res.status(200).json({ submissions: await listSubmissions({ limit: 400 }) });
+      }
+
+      /* ---------- Pasta de documentos ---------- */
+      if (action === 'files') {
+        const subs = await listSubmissions({ limit: 500 });
+        const files = subs
+          .filter(s => s.fileId)
+          .map(s => ({
+            subId: s.id,
+            fileId: s.fileId,
+            matricula: s.matricula,
+            nome: s.nome,
+            missionId: s.missionId,
+            missionTitle: s.missionTitle,
+            status: s.status,
+            createdAt: s.createdAt,
+            mime: mimeOf(s),
+            fileName: s.fileName || 'comprovante',
+          }));
+        return res.status(200).json({ files });
+      }
+
+      if (action === 'file') {
+        const data = await getFile(req.query.id);
+        if (!data) return res.status(404).json({ error: 'Documento não encontrado.' });
+        return res.status(200).json({ file: data });
+      }
+
+      if (action === 'prizes') {
+        return res.status(200).json({ prizes: await getPrizes() });
+      }
+
+      /* ---------- Aulas (área educacional) ---------- */
+      if (action === 'lessons') {
+        const [lessons, users] = await Promise.all([listLessons(), listUsers()]);
+        const enriched = lessons.map(l => ({
+          ...l,
+          assistiram: users.filter(u => (u.lessonsDone || {})[l.id]).length,
+          total: users.length,
+        }));
+        return res.status(200).json({ lessons: enriched });
+      }
+
+      /* ---------- Missões especiais criadas pelo gestor ---------- */
+      if (action === 'custom') {
+        const [missions, users, subs] = await Promise.all([
+          listCustomMissions(),
+          listUsers(),
+          listSubmissions({ limit: 500 }),
+        ]);
+        const enriched = missions.map(m => {
+          const alvos = (m.assignees || []);
+          const feitos = subs.filter(s => s.missionId === m.id && s.status === 'aprovado');
+          return {
+            ...m,
+            totalAlvos: alvos.length,
+            concluidos: [...new Set(feitos.map(s => s.matricula))].length,
+          };
+        });
+        return res.status(200).json({
+          missions: enriched,
+          colaboradores: users.map(u => ({ matricula: u.matricula, nome: u.nome })),
+        });
+      }
+
+      return res.status(400).json({ error: 'Ação inválida.' });
     }
 
-    // Mantém apenas os campos esperados e limita o histórico para conter custos.
-    const clean = messages
-      .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
-      .slice(-20)
-      .map(m => ({ role: m.role, content: m.content.slice(0, 6000) }));
+    /* ========================== ESCRITA ========================== */
+    if (req.method === 'POST') {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        temperature: 0.7,
-        messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...clean],
-      }),
-    });
+      if (action === 'review') {
+        const sub = await getSubmission(body.id);
+        if (!sub) return res.status(404).json({ error: 'Envio não encontrado.' });
+        if (sub.status !== 'pendente') return res.status(409).json({ error: 'Este envio já foi avaliado.' });
 
-    if (!response.ok) {
-      const detail = await response.text();
-      console.error('Erro da OpenAI:', response.status, detail);
-      return res.status(502).json({
-        error: 'O serviço do GPT retornou um erro. Verifique a chave da API e os créditos da sua conta OpenAI.'
-      });
+        const aprovar = body.decision === 'aprovar';
+        sub.status = aprovar ? 'aprovado' : 'recusado';
+        sub.note = String(body.note || '');
+        sub.reviewedAt = Date.now();
+
+        if (aprovar) {
+          const found = findMission(sub.missionId);
+          const pontos = sub.missionPoints ?? (found ? found.mission.points : 0);
+          const user = await getUser(sub.matricula);
+          if (user) {
+            user.points = (user.points || 0) + pontos;
+            user.done = { ...(user.done || {}), [sub.missionId]: ((user.done || {})[sub.missionId] || 0) + 1 };
+            await saveUser(user);
+          }
+          sub.points = pontos;
+        }
+
+        await saveSubmission(sub);
+        return res.status(200).json({ ok: true, submission: sub });
+      }
+
+      if (action === 'prizes') {
+        const list = Array.isArray(body.prizes) ? body.prizes : [];
+        const clean = list
+          .filter(p => p && typeof p.level === 'number')
+          .map(p => ({
+            level: p.level,
+            titulo: String(p.titulo || '').slice(0, 120),
+            descricao: String(p.descricao || '').slice(0, 400),
+            ativo: p.ativo !== false,
+          }));
+        await setPrizes(clean);
+        return res.status(200).json({ ok: true, prizes: clean });
+      }
+
+      /* ---------- Criar / editar missão especial ---------- */
+      if (action === 'custom') {
+        const titulo = String(body.title || '').trim();
+        const assignees = Array.isArray(body.assignees) ? body.assignees.map(String) : [];
+        if (!titulo) return res.status(400).json({ error: 'Dê um título à missão.' });
+        if (!assignees.length) return res.status(400).json({ error: 'Escolha pelo menos um colaborador.' });
+
+        const pontos = Math.max(0, Math.min(1000, parseInt(body.points, 10) || 0));
+        const tipo = body.type === 'proof' ? 'proof' : 'form';
+
+        const mission = {
+          id: body.id || ('cm_' + crypto.randomUUID().slice(0, 8)),
+          title: titulo,
+          desc: String(body.desc || '').slice(0, 400),
+          points: pontos,
+          type: tipo,
+          repeatable: !!body.repeatable,
+          assignees,
+          ativo: body.ativo !== false,
+          createdAt: body.createdAt || Date.now(),
+        };
+
+        if (tipo === 'proof') {
+          mission.proofHint = String(body.proofHint || 'Envie um comprovante do que foi combinado.').slice(0, 300);
+        } else {
+          // Missão de formulário: um campo aberto para o colaborador relatar.
+          mission.fields = [{
+            id: 'relato',
+            label: String(body.fieldLabel || 'Conte como você cumpriu esta missão').slice(0, 160),
+            type: 'textarea',
+          }];
+        }
+
+        await saveCustomMission(mission);
+        return res.status(200).json({ ok: true, mission });
+      }
+
+      if (action === 'customDelete') {
+        if (!body.id) return res.status(400).json({ error: 'Missão não informada.' });
+        await deleteCustomMission(String(body.id));
+        return res.status(200).json({ ok: true });
+      }
+
+      /* ---------- Criar / editar aula ---------- */
+      if (action === 'lesson') {
+        const titulo = String(body.titulo || '').trim();
+        if (!titulo) return res.status(400).json({ error: 'Dê um título à aula.' });
+
+        const videoId = youtubeId(body.video);
+        if (!videoId) return res.status(400).json({ error: 'Link do YouTube inválido. Cole o endereço completo do vídeo.' });
+
+        // Monta o quiz (o gestor marca a alternativa correta)
+        const quiz = (Array.isArray(body.quiz) ? body.quiz : [])
+          .filter(q => q && String(q.q || '').trim() && Array.isArray(q.options) && q.options.length >= 2)
+          .map(q => ({
+            q: String(q.q).slice(0, 300),
+            options: q.options.map(o => String(o).slice(0, 200)).slice(0, 4),
+            answer: Math.max(0, Math.min((q.options.length - 1), parseInt(q.answer, 10) || 0)),
+          }))
+          .slice(0, 5);
+
+        const lesson = {
+          id: body.id || ('les_' + crypto.randomUUID().slice(0, 8)),
+          titulo,
+          descricao: String(body.descricao || '').slice(0, 600),
+          video: String(body.video || '').trim(),
+          videoId,
+          trilha: String(body.trilha || '').slice(0, 60),
+          pontos: Math.max(0, Math.min(500, parseInt(body.pontos, 10) || 0)),
+          ordem: parseInt(body.ordem, 10) || 0,
+          liberaMissao: String(body.liberaMissao || ''),   // pré-requisito opcional
+          quiz,
+          ativo: body.ativo !== false,
+          createdAt: body.createdAt || Date.now(),
+        };
+        await saveLesson(lesson);
+        return res.status(200).json({ ok: true, lesson });
+      }
+
+      if (action === 'lessonDelete') {
+        if (!body.id) return res.status(400).json({ error: 'Aula não informada.' });
+        await deleteLesson(String(body.id));
+        return res.status(200).json({ ok: true });
+      }
+
+      if (action === 'rh') {
+        const user = await getUser(body.matricula);
+        if (!user) return res.status(404).json({ error: 'Colaborador não encontrado.' });
+        user.rhValidado = !!body.validado;
+        await saveUser(user);
+        return res.status(200).json({ ok: true });
+      }
+
+      return res.status(400).json({ error: 'Ação inválida.' });
     }
 
-    const data = await response.json();
-    const reply = data?.choices?.[0]?.message?.content?.trim() || '';
-
-    // Grava o histórico completo (perguntas + respostas) no banco de dados.
-    await saveConversation(conversationId, [...clean, { role: 'assistant', content: reply }]);
-
-    return res.status(200).json({ reply });
-
+    return res.status(405).json({ error: 'Método não permitido.' });
   } catch (err) {
-    console.error('Erro interno:', err);
-    return res.status(500).json({ error: 'Erro interno ao processar a solicitação.' });
+    console.error('admin:', err);
+    return res.status(500).json({ error: 'Erro no painel do gestor.' });
   }
 }

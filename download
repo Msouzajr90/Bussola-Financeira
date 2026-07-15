@@ -1,0 +1,13 @@
+# Variáveis de ambiente — cadastre na Vercel em Settings > Environment Variables.
+
+# --- OpenAI (obrigatória) ---
+OPENAI_API_KEY=coloque_sua_chave_aqui
+# OPENAI_MODEL=gpt-4o          # opcional (padrão: gpt-4o-mini)
+
+# --- Painel do gestor (obrigatória) ---
+ADMIN_PASSWORD=defina_uma_senha_forte
+
+# --- Banco de dados (obrigatório) ---
+# Criadas AUTOMATICAMENTE ao instalar o Upstash Redis pelo Marketplace da Vercel.
+# KV_REST_API_URL=
+# KV_REST_API_TOKEN=

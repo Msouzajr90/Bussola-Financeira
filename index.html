@@ -3,680 +3,943 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Programa de Saúde Financeira — Marco Souza × Engeval</title>
-<meta name="description" content="Programa de educação e saúde financeira para colaboradores." />
+<meta name="robots" content="noindex, nofollow" />
+<title>Painel do gestor — Marco Souza × Engeval</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --paper:#EEF3F8; --surface:#FFFFFF;
-    --blue:#0078C0; --blue-600:#0A6FB0; --blue-deep:#005B92; --blue-dark:#00406B;
-    --cyan:#309CD8; --cyan-light:#60B4E4;
+    --blue:#0078C0; --blue-deep:#005B92; --blue-dark:#00406B; --cyan:#309CD8;
     --ink:#16232E; --muted:#5B6E7B; --line:#D9E4EC;
     --ok:#1D9E75; --ok-bg:#E1F5EE; --warn:#BA7517; --warn-bg:#FAEEDA;
+    --bad:#A32D2D; --bad-bg:#FCEBEB;
     --shadow:0 1px 2px rgba(0,64,107,.06), 0 10px 28px rgba(0,64,107,.07);
-    --radius:14px;
     --orb:radial-gradient(circle at 32% 28%, #86C7EC 0%, #1E8BCE 42%, #0078C0 66%, #005B92 100%);
   }
   *{ box-sizing:border-box; }
-  html,body{ margin:0; min-height:100%; }
-  body{ font-family:'Inter',system-ui,sans-serif; background:var(--paper); color:var(--ink); -webkit-font-smoothing:antialiased; }
+  body{ margin:0; font-family:'Inter',system-ui,sans-serif; background:var(--paper); color:var(--ink); -webkit-font-smoothing:antialiased; }
   button{ font:inherit; }
+  .topbar{ display:flex; align-items:center; gap:12px; padding:13px clamp(14px,4vw,28px);
+    background:var(--surface); border-bottom:1px solid var(--line); box-shadow:0 1px 2px rgba(0,64,107,.08);
+    position:sticky; top:0; z-index:20; }
+  .topbar .dot{ width:14px; height:14px; border-radius:50%; background:var(--orb); }
+  .topbar h1{ font-family:'Archivo',sans-serif; font-weight:800; font-size:17px; color:var(--blue-dark); margin:0; }
+  .topbar .sub{ font-size:12.5px; color:var(--muted); margin-left:auto; }
+  .wrap{ max-width:1100px; margin:0 auto; padding:clamp(18px,3vw,28px) clamp(14px,4vw,24px) 70px; }
 
-  /* ---------- Topo ---------- */
-  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
-    padding:12px clamp(14px,4vw,28px); background:var(--surface); border-bottom:1px solid var(--line);
-    box-shadow:0 1px 2px rgba(0,64,107,.08); position:sticky; top:0; z-index:20; }
-  .cobrand{ display:flex; flex-direction:column; line-height:1.05; }
-  .personal-name{ font-family:'Archivo',sans-serif; font-weight:800; font-size:19px; color:var(--blue-dark); letter-spacing:-.01em; }
-  .partner{ display:flex; align-items:center; gap:7px; margin-top:3px; }
-  .partner-label{ font-size:10px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); }
-  .engeval-logo{ height:17px; width:auto; display:block; }
-  .userbox{ display:flex; align-items:center; gap:12px; }
-  .who{ text-align:right; line-height:1.2; }
-  .who .n{ font-size:13.5px; font-weight:600; }
-  .who .m{ font-size:11.5px; color:var(--muted); }
-  .ghost{ font-size:12.5px; font-weight:600; color:var(--blue-deep); background:var(--surface);
-    border:1px solid var(--line); border-radius:999px; padding:7px 13px; cursor:pointer; }
-  .ghost:hover{ border-color:var(--cyan); color:var(--blue); }
-
-  .wrap{ max-width:1000px; margin:0 auto; padding:clamp(16px,3vw,28px) clamp(14px,4vw,24px) 60px; }
-
-  /* ---------- Login ---------- */
-  .gate{ max-width:420px; margin:6vh auto 0; background:var(--surface); border:1px solid var(--line);
-    border-radius:18px; padding:30px; box-shadow:var(--shadow); }
-  .gate .orb{ width:38px; height:38px; border-radius:50%; background:var(--orb); margin-bottom:16px; }
-  .gate h1{ font-family:'Archivo',sans-serif; font-weight:800; font-size:23px; color:var(--blue-dark); margin:0 0 6px; letter-spacing:-.01em; }
-  .gate .lead{ font-size:14px; color:var(--muted); margin:0 0 20px; line-height:1.55; }
-  .tabs{ display:flex; gap:6px; background:var(--paper); padding:4px; border-radius:10px; margin-bottom:18px; }
-  .tabs button{ flex:1; padding:8px; border:none; background:none; border-radius:7px; font-size:13.5px; font-weight:600; color:var(--muted); cursor:pointer; }
-  .tabs button.on{ background:var(--surface); color:var(--blue-deep); box-shadow:0 1px 3px rgba(0,64,107,.1); }
-  label{ display:block; font-size:12px; font-weight:600; color:var(--muted); margin:0 0 5px; }
-  input,select,textarea{ width:100%; font:inherit; font-size:15px; padding:11px 13px; border:1px solid var(--line);
+  .gate{ max-width:380px; margin:9vh auto 0; background:var(--surface); border:1px solid var(--line);
+    border-radius:16px; padding:28px; box-shadow:var(--shadow); }
+  .gate h2{ font-family:'Archivo',sans-serif; font-weight:700; font-size:19px; color:var(--blue-dark); margin:0 0 6px; }
+  .gate p{ font-size:13.5px; color:var(--muted); margin:0 0 18px; line-height:1.5; }
+  label{ display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:5px; }
+  input,textarea,select{ width:100%; font:inherit; font-size:15px; padding:11px 13px; border:1px solid var(--line);
     border-radius:10px; outline:none; background:var(--surface); color:var(--ink); }
-  textarea{ resize:vertical; min-height:76px; line-height:1.5; }
-  input:focus,select:focus,textarea:focus{ border-color:var(--blue); box-shadow:0 0 0 3px rgba(0,120,192,.12); }
-  .row{ margin-bottom:13px; }
-  .btn{ width:100%; font-weight:600; font-size:14.5px; color:#fff; background:var(--orb); border:none;
-    border-radius:11px; padding:12px 18px; cursor:pointer; box-shadow:0 3px 10px rgba(0,120,192,.3); }
+  textarea{ resize:vertical; min-height:60px; }
+  input:focus,textarea:focus,select:focus{ border-color:var(--blue); box-shadow:0 0 0 3px rgba(0,120,192,.12); }
+  .btn{ font-weight:600; font-size:14px; color:#fff; background:var(--orb); border:none; border-radius:10px;
+    padding:11px 18px; cursor:pointer; box-shadow:0 3px 10px rgba(0,120,192,.3); }
   .btn:hover{ filter:brightness(1.05); }
-  .btn:disabled{ opacity:.5; cursor:not-allowed; box-shadow:none; }
-  .msg-err{ color:#8A2C2C; font-size:13px; margin-top:12px; min-height:18px; line-height:1.4; }
-  .privacy{ margin-top:18px; padding:12px 14px; background:var(--warn-bg); border:1px solid #EBD2A6;
-    border-radius:10px; font-size:12px; color:#6E4A12; line-height:1.5; }
+  .btn.wide{ width:100%; margin-top:14px; }
+  .err{ color:#8A2C2C; font-size:13px; margin-top:12px; min-height:18px; }
 
-  /* ---------- Painel ---------- */
-  .hero{ background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:22px;
-    box-shadow:var(--shadow); margin-bottom:18px; }
-  .hero-top{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
-  .badge{ width:62px; height:62px; border-radius:50%; background:var(--orb); color:#fff; flex:0 0 auto;
-    display:grid; place-items:center; font-family:'Archivo',sans-serif; font-weight:800; font-size:23px;
-    box-shadow:0 4px 14px rgba(0,120,192,.35); }
-  .hero-txt{ flex:1 1 200px; }
-  .hero-txt .lvl{ font-family:'Archivo',sans-serif; font-weight:800; font-size:21px; color:var(--blue-dark); letter-spacing:-.01em; }
-  .hero-txt .pts{ font-size:13.5px; color:var(--muted); margin-top:2px; }
-  .streak{ font-size:12px; font-weight:600; color:var(--warn); background:var(--warn-bg);
-    border-radius:999px; padding:5px 11px; }
-  .bar{ height:9px; background:var(--paper); border-radius:999px; overflow:hidden; margin-top:16px; border:1px solid var(--line); }
-  .bar > i{ display:block; height:100%; background:var(--orb); border-radius:999px; transition:width .5s; }
-  .bar-lbl{ display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-top:7px; }
-
-  .nav{ display:flex; gap:8px; margin-bottom:16px; }
-  .nav button{ flex:1; padding:11px; border:1px solid var(--line); background:var(--surface); border-radius:11px;
-    font-size:14px; font-weight:600; color:var(--muted); cursor:pointer; }
+  .nav{ display:flex; gap:7px; margin-bottom:18px; flex-wrap:wrap; }
+  .nav button{ padding:10px 15px; border:1px solid var(--line); background:var(--surface); border-radius:10px;
+    font-size:13.5px; font-weight:600; color:var(--muted); cursor:pointer; }
   .nav button.on{ background:var(--blue-dark); border-color:var(--blue-dark); color:#fff; }
+  .nav .pill{ background:var(--warn); color:#fff; border-radius:999px; padding:1px 7px; font-size:11px; margin-left:5px; }
+  .nav .spacer{ flex:1; }
 
-  /* Trilhas */
-  .track{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
-    box-shadow:var(--shadow); margin-bottom:14px; overflow:hidden; }
-  .track-head{ padding:15px 18px; border-bottom:1px solid var(--line); }
-  .track-head h3{ font-family:'Archivo',sans-serif; font-weight:700; font-size:16px; color:var(--blue-dark); margin:0; }
-  .track-head p{ font-size:13px; color:var(--muted); margin:3px 0 0; }
-  .mission{ display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid var(--line); }
-  .mission:last-child{ border-bottom:none; }
-  .m-icon{ width:26px; height:26px; border-radius:50%; flex:0 0 auto; display:grid; place-items:center;
-    font-size:13px; font-weight:700; border:1.5px solid var(--line); color:var(--muted); background:var(--paper); }
-  .m-icon.done{ background:var(--ok-bg); border-color:var(--ok); color:var(--ok); }
-  .m-icon.wait{ background:var(--warn-bg); border-color:var(--warn); color:var(--warn); }
-  .m-body{ flex:1 1 auto; min-width:0; }
-  .m-body .t{ font-size:14.5px; font-weight:600; }
-  .m-body .d{ font-size:12.5px; color:var(--muted); margin-top:2px; line-height:1.45; }
-  .m-pts{ flex:0 0 auto; font-size:12px; font-weight:700; color:var(--blue); background:#EAF4FB;
-    border-radius:999px; padding:5px 10px; }
-  .m-go{ flex:0 0 auto; font-size:13px; font-weight:600; color:#fff; background:var(--blue-dark);
-    border:none; border-radius:9px; padding:8px 14px; cursor:pointer; }
-  .m-go:hover{ background:var(--blue-deep); }
-  .m-go.sec{ background:var(--surface); color:var(--blue-deep); border:1px solid var(--line); }
-  .m-tag{ font-size:11px; font-weight:600; padding:4px 9px; border-radius:999px; }
-  .m-tag.done{ background:var(--ok-bg); color:#0F6E56; }
-  .m-tag.wait{ background:var(--warn-bg); color:#854F0B; }
-  .m-tag.bad{ background:#FCEBEB; color:#A32D2D; }
-  .m-tag.esp{ background:#EEEDFE; color:#3C3489; }
+  .cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(148px,1fr)); gap:11px; margin-bottom:16px; }
+  .card{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 16px; box-shadow:var(--shadow); }
+  .card .k{ font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); line-height:1.35; }
+  .card .v{ font-family:'Archivo',sans-serif; font-weight:800; font-size:26px; color:var(--blue-dark); margin-top:4px; }
+  .card .s{ font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .card.alert{ border-color:#EBD2A6; background:var(--warn-bg); }
+  .card.alert .v{ color:var(--warn); }
+  .card.good .v{ color:var(--ok); }
 
-  /* Concluídas */
-  .feito{ padding:14px 18px; border-bottom:1px solid var(--line); }
-  .feito:last-child{ border-bottom:none; }
-  .fh{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
-  .ft{ font-size:14.5px; font-weight:600; flex:1; }
-  .fw{ font-size:12px; color:var(--muted); margin-top:3px; }
-  .fb{ background:var(--paper); border:1px solid var(--line); border-radius:9px;
-    padding:10px 12px; margin-top:9px; font-size:13px; line-height:1.6; }
-  .fd{ margin-bottom:3px; } .fd:last-child{ margin-bottom:0; }
-  .fd b{ color:var(--blue-deep); font-weight:600; }
-  .fn{ font-size:12.5px; color:var(--muted); margin-top:8px; font-style:italic; }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:760px){ .grid2{ grid-template-columns:1fr; } }
 
-  /* Prêmios */
-  .prize{ display:flex; gap:12px; align-items:flex-start; padding:14px 18px; border-bottom:1px solid var(--line); }
-  .prize:last-child{ border-bottom:none; }
-  .prize .lv{ flex:0 0 auto; width:30px; height:30px; border-radius:8px; background:var(--paper);
-    border:1px solid var(--line); display:grid; place-items:center; font-weight:700; font-size:13px; color:var(--blue-deep); }
-  .prize.reached .lv{ background:var(--orb); color:#fff; border-color:transparent; }
-  .prize .pt{ font-size:14px; font-weight:600; }
-  .prize .pd{ font-size:12.5px; color:var(--muted); margin-top:2px; }
+  .panel{ background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); overflow:hidden; margin-bottom:14px; }
+  .panel-head{ padding:14px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .panel-head strong{ font-family:'Archivo',sans-serif; font-size:14.5px; color:var(--blue-dark); }
+  .panel-head .hint{ font-size:12px; color:var(--muted); }
+  .pbody{ padding:16px 18px; }
 
-  /* Chat */
-  .chatbox{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
-    box-shadow:var(--shadow); display:flex; flex-direction:column; height:min(70vh,620px); }
-  .thread{ flex:1 1 auto; overflow-y:auto; padding:18px; }
-  .b{ display:flex; margin:0 0 14px; }
-  .b.user{ justify-content:flex-end; }
-  .bub{ max-width:min(86%,560px); padding:12px 16px; border-radius:14px; font-size:15px; line-height:1.6; word-wrap:break-word; }
-  .b.user .bub{ background:linear-gradient(135deg,var(--blue-600),var(--blue)); color:#EAF5FC; border-bottom-right-radius:4px; }
-  .b.bot .bub{ background:var(--paper); border:1px solid var(--line); border-bottom-left-radius:4px; }
-  .b.bot .bub p{ margin:0 0 9px; } .b.bot .bub p:last-child{ margin-bottom:0; }
-  .b.bot .bub p.h{ font-weight:700; color:var(--blue-dark); }
-  .b.bot .bub ul,.b.bot .bub ol{ margin:5px 0 10px; padding-left:20px; }
-  .b.bot .bub li::marker{ color:var(--blue); }
-  .b.bot .bub strong{ color:var(--blue-deep); }
-  .b.err .bub{ background:#FBECEC; border:1px solid #E7BEBE; color:#8A2C2C; }
-  .av{ width:28px; height:28px; border-radius:50%; background:var(--orb); flex:0 0 auto; margin-right:10px; margin-top:2px; }
-  .typing{ display:inline-flex; gap:5px; padding:3px 2px; }
-  .typing i{ width:6px; height:6px; border-radius:50%; background:var(--cyan); animation:bo 1.2s infinite; }
-  .typing i:nth-child(2){ animation-delay:.15s; } .typing i:nth-child(3){ animation-delay:.3s; }
-  @keyframes bo{ 0%,60%,100%{ transform:translateY(0); opacity:.45; } 30%{ transform:translateY(-5px); opacity:1; } }
-  .composer{ flex:0 0 auto; border-top:1px solid var(--line); padding:12px; display:flex; gap:9px; align-items:flex-end; }
-  .composer textarea{ flex:1; border:1px solid var(--line); border-radius:14px; padding:11px 14px; max-height:130px; min-height:44px; }
-  .send{ width:44px; height:44px; border-radius:50%; border:none; background:var(--orb); color:#fff; cursor:pointer;
-    display:grid; place-items:center; flex:0 0 auto; box-shadow:0 3px 10px rgba(0,120,192,.3); }
-  .send:disabled{ opacity:.4; box-shadow:none; cursor:not-allowed; }
-  .chips{ display:flex; gap:7px; flex-wrap:wrap; padding:0 18px 14px; }
-  .chip{ font-size:13px; background:var(--surface); border:1px solid var(--line); border-radius:999px;
-    padding:8px 13px; cursor:pointer; color:var(--ink); }
-  .chip:hover{ border-color:var(--cyan); }
+  /* barras */
+  .brow{ margin-bottom:13px; }
+  .brow:last-child{ margin-bottom:0; }
+  .btop{ display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px; gap:10px; }
+  .btop .bl{ color:var(--ink); font-weight:500; }
+  .btop .bv{ color:var(--muted); font-size:12px; white-space:nowrap; }
+  .track{ height:8px; background:var(--paper); border:1px solid var(--line); border-radius:999px; overflow:hidden; }
+  .track > i{ display:block; height:100%; background:var(--orb); border-radius:999px; }
+  .track.g > i{ background:var(--ok); }
+  .track.w > i{ background:var(--warn); }
 
-  /* Modal de missão */
-  .veil{ position:fixed; inset:0; background:rgba(0,32,54,.5); display:none; align-items:center;
-    justify-content:center; padding:18px; z-index:50; }
-  .veil.on{ display:flex; }
-  .modal{ background:var(--surface); border-radius:18px; width:100%; max-width:520px; max-height:88vh;
-    overflow-y:auto; box-shadow:0 20px 50px rgba(0,32,54,.3); }
-  .modal-head{ padding:20px 22px 14px; border-bottom:1px solid var(--line); }
-  .modal-head h3{ font-family:'Archivo',sans-serif; font-weight:700; font-size:18px; color:var(--blue-dark); margin:0 0 5px; }
-  .modal-head p{ font-size:13.5px; color:var(--muted); margin:0; line-height:1.5; }
-  .modal-body{ padding:20px 22px; }
-  .modal-foot{ padding:0 22px 22px; display:flex; gap:9px; }
-  .modal-foot .btn{ flex:1; }
-  .modal-foot .cancel{ flex:0 0 auto; background:var(--paper); color:var(--muted); box-shadow:none; border:1px solid var(--line); width:auto; padding:12px 18px; }
-  .q{ margin-bottom:18px; }
-  .q .qt{ font-size:14.5px; font-weight:600; margin-bottom:9px; line-height:1.45; }
-  .opt{ display:flex; align-items:flex-start; gap:9px; padding:10px 12px; border:1px solid var(--line);
-    border-radius:10px; margin-bottom:7px; cursor:pointer; font-size:14px; line-height:1.45; }
-  .opt:hover{ border-color:var(--cyan); }
-  .opt input{ width:auto; margin-top:2px; flex:0 0 auto; }
-  .drop{ border:1.5px dashed var(--cyan); border-radius:12px; padding:22px; text-align:center;
-    background:#F4FAFD; cursor:pointer; }
-  .drop:hover{ background:#EAF4FB; }
-  .drop .dt{ font-size:14px; font-weight:600; color:var(--blue-deep); }
-  .drop .dd{ font-size:12.5px; color:var(--muted); margin-top:4px; line-height:1.45; }
-  .drop img{ max-width:100%; max-height:190px; border-radius:8px; margin-top:10px; }
-  .hint{ font-size:12.5px; color:var(--muted); background:var(--paper); border-radius:9px;
-    padding:11px 13px; margin-bottom:16px; line-height:1.5; }
-  .toast{ position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px); opacity:0;
-    background:var(--blue-dark); color:#fff; padding:13px 20px; border-radius:12px; font-size:14px;
-    font-weight:600; box-shadow:0 8px 24px rgba(0,32,54,.3); z-index:60; transition:.3s; pointer-events:none;
-    max-width:90vw; text-align:center; }
-  .toast.on{ opacity:1; transform:translateX(-50%) translateY(0); }
+  table{ width:100%; border-collapse:collapse; }
+  th{ text-align:left; font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--muted); padding:11px 16px; border-bottom:1px solid var(--line); background:var(--paper); }
+  td{ padding:12px 16px; border-bottom:1px solid var(--line); font-size:14px; vertical-align:middle; }
+  tr:last-child td{ border-bottom:none; }
+  tbody tr:hover td{ background:#F7FBFD; }
+  .pos{ font-family:'Archivo',sans-serif; font-weight:700; color:var(--muted); }
+  .lvl{ display:inline-block; font-size:11.5px; font-weight:600; background:#EAF4FB; color:var(--blue-deep);
+    border-radius:999px; padding:3px 9px; }
+  .pts{ font-family:'Archivo',sans-serif; font-weight:700; color:var(--blue-dark); }
+  .link{ font-size:13px; font-weight:600; color:var(--blue); background:none; border:none; cursor:pointer; padding:0; }
+  .link:hover{ text-decoration:underline; }
+  .rowbtn{ font-size:12.5px; font-weight:600; color:var(--blue-deep); background:var(--surface);
+    border:1px solid var(--line); border-radius:8px; padding:6px 11px; cursor:pointer; }
+  .rowbtn:hover{ border-color:var(--cyan); color:var(--blue); }
+
+  .tag{ font-size:11px; font-weight:600; border-radius:999px; padding:3px 9px; display:inline-block; }
+  .tag.pendente{ background:var(--warn-bg); color:#854F0B; }
+  .tag.aprovado{ background:var(--ok-bg); color:#0F6E56; }
+  .tag.recusado{ background:var(--bad-bg); color:var(--bad); }
+
+  .sub{ padding:15px 18px; border-bottom:1px solid var(--line); }
+  .sub:last-child{ border-bottom:none; }
+  .sub-top{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:8px; }
+  .sub-top .who{ font-weight:600; font-size:14.5px; }
+  .sub-top .when{ font-size:12px; color:var(--muted); margin-left:auto; }
+  .sub .what{ font-size:13.5px; color:var(--muted); margin-bottom:9px; }
+  .sub-data{ background:var(--paper); border:1px solid var(--line); border-radius:9px; padding:11px 13px;
+    font-size:13px; line-height:1.6; white-space:pre-wrap; margin-bottom:10px; }
+  .sub img{ max-width:100%; max-height:340px; border-radius:9px; border:1px solid var(--line); display:block; margin-bottom:10px; }
+  .acts{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .acts .ok{ background:var(--ok); color:#fff; border:none; border-radius:9px; padding:8px 15px; font-size:13px; font-weight:600; cursor:pointer; }
+  .acts .no{ background:var(--surface); color:var(--bad); border:1px solid #E7BEBE; border-radius:9px; padding:8px 15px; font-size:13px; font-weight:600; cursor:pointer; }
+  .acts input{ flex:1; min-width:150px; font-size:13px; padding:8px 11px; }
+
+  /* documentos */
+  .filters{ display:flex; gap:9px; flex-wrap:wrap; padding:13px 18px; border-bottom:1px solid var(--line); background:var(--paper); }
+  .filters input,.filters select{ font-size:13.5px; padding:8px 11px; width:auto; flex:1; min-width:140px; }
+  .docs{ display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:13px; padding:16px 18px; }
+  .doc{ border:1px solid var(--line); border-radius:11px; overflow:hidden; background:var(--surface); }
+  .doc .thumb{ height:120px; background:var(--paper); display:grid; place-items:center; cursor:pointer; overflow:hidden; }
+  .doc .thumb img{ width:100%; height:100%; object-fit:cover; }
+  .doc .thumb .ph{ font-size:12px; color:var(--muted); text-align:center; padding:10px; }
+  .doc .meta{ padding:10px 12px; }
+  .doc .meta .n{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .doc .meta .m{ font-size:11.5px; color:var(--muted); margin-top:2px; line-height:1.4; }
+  .doc .meta .b{ margin-top:7px; display:flex; gap:6px; align-items:center; justify-content:space-between; }
+
+  /* ficha */
+  .ficha-head{ display:flex; align-items:center; gap:14px; padding:18px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .ficha-head .bg{ width:52px; height:52px; border-radius:50%; background:var(--orb); color:#fff;
+    display:grid; place-items:center; font-family:'Archivo',sans-serif; font-weight:800; font-size:20px; }
+  .ficha-head .nm{ font-family:'Archivo',sans-serif; font-weight:800; font-size:18px; color:var(--blue-dark); }
+  .ficha-head .mt{ font-size:12.5px; color:var(--muted); margin-top:2px; }
+  .ficha-head .st{ margin-left:auto; display:flex; gap:18px; text-align:right; flex-wrap:wrap; }
+  .ficha-head .st div .k{ font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:600; }
+  .ficha-head .st div .v{ font-family:'Archivo',sans-serif; font-weight:700; font-size:17px; color:var(--blue-dark); }
+  .mrow{ padding:12px 18px; border-bottom:1px solid var(--line); }
+  .mrow:last-child{ border-bottom:none; }
+  .mrow-top{ display:flex; align-items:center; gap:10px; }
+  .mi{ width:24px; height:24px; border-radius:50%; flex:0 0 auto; display:grid; place-items:center;
+    font-size:12px; font-weight:700; border:1.5px solid var(--line); color:var(--muted); background:var(--paper); }
+  .mi.done{ background:var(--ok-bg); border-color:var(--ok); color:var(--ok); }
+  .mi.wait{ background:var(--warn-bg); border-color:var(--warn); color:var(--warn); }
+  .mrow .t{ flex:1; font-size:14px; font-weight:500; }
+  .mrow .t.off{ color:var(--muted); font-weight:400; }
+  .mrow .p{ font-size:12px; font-weight:700; color:var(--blue); }
+  .mdet{ margin:10px 0 0 34px; }
+  .mdet .env{ background:var(--paper); border:1px solid var(--line); border-radius:9px; padding:10px 12px;
+    font-size:12.5px; line-height:1.6; margin-bottom:7px; white-space:pre-wrap; }
+  .mdet .env .eh{ display:flex; gap:8px; align-items:center; margin-bottom:6px; font-size:11.5px; color:var(--muted); }
+  .trackname{ padding:11px 18px; background:var(--paper); font-family:'Archivo',sans-serif; font-weight:700;
+    font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--blue-deep); border-bottom:1px solid var(--line); }
+
+  .msg{ margin-bottom:13px; }
+  .msg .r{ font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; margin-bottom:4px; }
+  .msg.user .r{ color:var(--blue); } .msg.assistant .r{ color:var(--muted); }
+  .msg .bd{ font-size:14px; line-height:1.6; white-space:pre-wrap; background:var(--paper);
+    border:1px solid var(--line); border-radius:9px; padding:11px 13px; }
+  .msg.user .bd{ background:#EAF4FB; border-color:#CFE6F5; }
+
+  .prizerow{ display:grid; grid-template-columns:44px 1fr 1.4fr; gap:10px; align-items:start;
+    padding:13px 18px; border-bottom:1px solid var(--line); }
+  .prizerow .lv{ width:34px; height:34px; border-radius:9px; background:var(--orb); color:#fff;
+    display:grid; place-items:center; font-weight:700; font-size:14px; margin-top:22px; }
   .empty{ padding:34px 18px; text-align:center; color:var(--muted); font-size:14px; }
-  .foot{ text-align:center; font-size:11.5px; color:var(--muted); margin-top:26px; line-height:1.5; }
-  .foot b{ color:var(--blue-deep); }
-  @media (prefers-reduced-motion:reduce){ *{ animation:none!important; transition:none!important; } }
+  .note{ font-size:12px; color:var(--muted); padding:12px 18px; background:var(--paper); line-height:1.5; }
+  .back{ font-size:13px; font-weight:600; color:var(--blue); background:none; border:none; cursor:pointer; padding:0 0 12px; }
+  .veil{ position:fixed; inset:0; background:rgba(0,32,54,.6); display:none; align-items:center; justify-content:center; padding:20px; z-index:60; }
+  .veil.on{ display:flex; }
+  .veil img{ max-width:100%; max-height:88vh; border-radius:12px; }
+
+  /* menu de exportação */
+  .csvbox{ background:var(--surface); border-radius:16px; width:100%; max-width:380px; overflow:hidden;
+    box-shadow:0 20px 50px rgba(0,32,54,.35); }
+  .csvh{ padding:16px 20px; font-family:'Archivo',sans-serif; font-weight:700; font-size:15px;
+    color:var(--blue-dark); border-bottom:1px solid var(--line); }
+  .csvi{ display:block; width:100%; text-align:left; padding:13px 20px; border:none; background:none;
+    border-bottom:1px solid var(--line); font-size:14px; color:var(--ink); cursor:pointer; }
+  .csvi:hover{ background:#F3F9FD; color:var(--blue-deep); }
+  .csvi.all{ font-weight:600; color:var(--blue-deep); }
+  .csvi.cancel{ color:var(--muted); border-bottom:none; text-align:center; }
+
+  /* seleção de colaboradores */
+  .chk{ display:flex; align-items:center; gap:8px; font-size:14px; font-weight:400;
+    color:var(--ink); cursor:pointer; margin:0; padding:7px 0; }
+  .chk input{ width:auto; flex:0 0 auto; }
+  .chk .mm{ font-size:12px; color:var(--muted); }
+  .whobox{ border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .whotools{ display:flex; gap:8px; padding:9px 12px; background:var(--paper); border-bottom:1px solid var(--line); }
+  .wholist{ max-height:190px; overflow-y:auto; padding:6px 14px; }
+
+  /* construtor de quiz */
+  .callout{ background:#EAF4FB; border:1px solid #CFE6F5; border-radius:10px; padding:12px 14px;
+    font-size:13px; color:var(--blue-deep); line-height:1.5; margin:16px 0 12px; }
+  .qbuilder{ border:1px solid var(--line); border-radius:11px; padding:14px; margin-bottom:12px; background:var(--paper); }
+  .qb-head{ display:flex; justify-content:space-between; align-items:center; font-size:12.5px; font-weight:700;
+    color:var(--blue-deep); text-transform:uppercase; letter-spacing:.04em; margin-bottom:9px; }
+  .qb-del{ background:none; border:none; color:var(--bad); font-size:12px; font-weight:600; cursor:pointer; text-transform:none; letter-spacing:0; }
+  .qb-q{ margin-bottom:10px; }
+  .qb-opts{ display:grid; gap:7px; }
+  .qb-opt{ display:flex; align-items:center; gap:9px; }
+  .qb-opt input[type=radio]{ width:auto; flex:0 0 auto; }
+  .qb-opt .qb-o{ flex:1; padding:8px 11px; font-size:13.5px; }
+  .qb-hint{ font-size:12px; color:var(--muted); margin-top:8px; }
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <div class="cobrand">
-    <span class="personal-name">Marco Souza</span>
-    <span class="partner">
-      <span class="partner-label">em parceria com</span>
-      <img class="engeval-logo" src="assets/logo-engeval.png" alt="Engeval" />
-    </span>
-  </div>
-  <div class="userbox" id="userbox" style="display:none">
-    <div class="who"><div class="n" id="uName">—</div><div class="m" id="uMat">—</div></div>
-    <button class="ghost" id="logout" type="button">Sair</button>
-  </div>
+  <span class="dot"></span>
+  <h1>Painel do gestor</h1>
+  <span class="sub">Programa de Saúde Financeira · Marco Souza × Engeval</span>
 </div>
 
 <div class="wrap">
 
-  <!-- ===================== LOGIN ===================== -->
   <section class="gate" id="gate">
-    <div class="orb"></div>
-    <h1>Programa de Saúde Financeira</h1>
-    <p class="lead">Cumpra missões, ganhe pontos e suba de nível enquanto organiza sua vida financeira. Sem julgamentos — quem está endividado pontua igual a quem já está no azul.</p>
-
-    <div class="tabs">
-      <button type="button" class="on" id="tabLogin">Já tenho cadastro</button>
-      <button type="button" id="tabReg">Primeiro acesso</button>
-    </div>
-
-    <div class="row" id="nameRow" style="display:none">
-      <label for="gNome">Nome completo</label>
-      <input type="text" id="gNome" placeholder="Seu nome" autocomplete="name" />
-    </div>
-    <div class="row">
-      <label for="gMat">Matrícula</label>
-      <input type="text" id="gMat" placeholder="Sua matrícula na empresa" inputmode="numeric" autocomplete="username" />
-    </div>
-    <div class="row">
-      <label for="gPin">PIN (4 a 8 números)</label>
-      <input type="password" id="gPin" placeholder="••••" inputmode="numeric" autocomplete="current-password" />
-    </div>
-    <button class="btn" id="gGo" type="button">Entrar</button>
-    <div class="msg-err" id="gErr"></div>
-
-    <div class="privacy">
-      <strong>Sobre sua privacidade:</strong> suas conversas com o Orientador e os comprovantes
-      que você enviar poderão ser vistos pelo gestor do programa. Nunca informe senhas, códigos
-      recebidos por SMS ou o número completo do seu cartão.
-    </div>
+    <h2>Acesso restrito</h2>
+    <p>Informe a senha do gestor para abrir o painel.</p>
+    <label for="pw">Senha</label>
+    <input type="password" id="pw" placeholder="••••••••" autocomplete="current-password" />
+    <button class="btn wide" id="enter" type="button">Entrar</button>
+    <div class="err" id="gErr"></div>
   </section>
 
-  <!-- ===================== PAINEL ===================== -->
-  <section id="app" style="display:none">
-
-    <div class="hero">
-      <div class="hero-top">
-        <div class="badge" id="hBadge">1</div>
-        <div class="hero-txt">
-          <div class="lvl" id="hLevel">Iniciante</div>
-          <div class="pts" id="hPts">0 pontos</div>
-        </div>
-        <span class="streak" id="hStreak" style="display:none"></span>
-      </div>
-      <div class="bar"><i id="hBar" style="width:0%"></i></div>
-      <div class="bar-lbl"><span id="hNext">—</span><span id="hPct">0%</span></div>
-    </div>
-
+  <section id="dash" style="display:none">
     <div class="nav">
-      <button type="button" class="on" data-view="missoes">Missões</button>
-      <button type="button" data-view="feitas">Concluídas</button>
-      <button type="button" data-view="chat">Orientador</button>
-      <button type="button" data-view="premios">Prêmios</button>
+      <button type="button" class="on" data-v="dash">Dashboard</button>
+      <button type="button" data-v="pessoas">Colaboradores</button>
+      <button type="button" data-v="docs">Documentos</button>
+      <button type="button" data-v="fila">Aprovações <span class="pill" id="pill" style="display:none">0</span></button>
+      <button type="button" data-v="especiais">Missões especiais</button>
+      <button type="button" data-v="aulas">Aulas</button>
+      <button type="button" data-v="premios">Prêmios</button>
+      <span class="spacer"></span>
+      <button type="button" id="csv">⬇ Exportar CSV</button>
+      <button type="button" id="reload">Atualizar</button>
+      <button type="button" id="exit">Sair</button>
     </div>
 
-    <!-- Missões -->
-    <div id="vMissoes"><div class="empty">Carregando…</div></div>
-
-    <!-- Concluídas -->
-    <div id="vFeitas" style="display:none"></div>
-
-    <!-- Chat -->
-    <div id="vChat" style="display:none">
-      <div class="chatbox">
-        <div class="thread" id="thread"></div>
-        <div class="chips" id="chips"></div>
-        <div class="composer">
-          <textarea id="cIn" rows="1" placeholder="Escreva sua pergunta sobre dinheiro…"></textarea>
-          <button class="send" id="cSend" type="button" aria-label="Enviar" disabled>
-            <svg width="19" height="19" viewBox="0 0 24 24"><path d="M4 12 L20 4 L14 20 L11.5 13.5 Z" fill="currentColor"/></svg>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Prêmios -->
+    <div id="vDash"></div>
+    <div id="vPessoas" style="display:none"></div>
+    <div id="vDocs" style="display:none"></div>
+    <div id="vFila" style="display:none"></div>
+    <div id="vEspeciais" style="display:none"></div>
+    <div id="vAulas" style="display:none"></div>
     <div id="vPremios" style="display:none"></div>
-
-    <p class="foot">
-      <b>Uma iniciativa Marco Souza × Engeval.</b><br>
-      As orientações têm caráter educativo e não constituem recomendação de investimento
-      ou consultoria financeira individual.
-    </p>
   </section>
 </div>
 
-<!-- Modal de missão -->
-<div class="veil" id="veil">
-  <div class="modal">
-    <div class="modal-head"><h3 id="mTitle"></h3><p id="mDesc"></p></div>
-    <div class="modal-body" id="mBody"></div>
-    <div class="modal-foot">
-      <button class="btn cancel" id="mCancel" type="button">Cancelar</button>
-      <button class="btn" id="mSend" type="button">Enviar</button>
-    </div>
-  </div>
-</div>
-<div class="toast" id="toast"></div>
+<div class="veil" id="lightbox"><img id="lbImg" alt="Documento"></div>
+<div class="veil" id="csvMenu"></div>
 
 <script>
 (function(){
   const $ = id => document.getElementById(id);
-  let token = null, state = null, chatHist = [], busy = false, mode = 'login', current = null, fileData = null, fileName = '';
+  let key='', dash=null, over=null, subs=[], files=[], prizes=[], custom=[], colabs=[], lessons=[];
 
-  const OPTS = ['Tenho uma dúvida sobre dinheiro','Quero organizar minhas finanças','Estou com dívidas',
-                'Quero começar a guardar dinheiro','Quero fazer um planejamento','Quero comparar duas opções'];
-  const GREET = 'Olá! Eu sou seu Orientador Financeiro.\n\nPosso te ajudar a tirar dúvidas, organizar suas contas, entender dívidas, planejar objetivos ou comparar opções.\n\nEscolha uma opção abaixo ou me conte o que está acontecendo.';
-  const GREET_H = GREET + '\n\n1 — Tenho uma dúvida sobre dinheiro\n2 — Quero organizar minhas finanças\n3 — Estou com dívidas\n4 — Quero começar a guardar dinheiro\n5 — Quero fazer um planejamento\n6 — Quero comparar duas opções';
+  const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const fmt = ts => ts ? new Date(ts).toLocaleString('pt-BR') : '—';
+  const fmtD = ts => ts ? new Date(ts).toLocaleDateString('pt-BR') : '—';
 
-  /* ---------- utilidades ---------- */
-  const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  function md(text){
-    const L = esc(text).split(/\r?\n/); let h='', ul=false, ol=false;
-    const close=()=>{ if(ul){h+='</ul>';ul=false;} if(ol){h+='</ol>';ol=false;} };
-    const inl = t => t.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/`(.+?)`/g,'<code>$1</code>');
-    for(const raw of L){ const l=raw.trim(); if(!l){ close(); continue; }
-      let m;
-      if((m=l.match(/^#{1,4}\s+(.*)$/))){ close(); h+='<p class="h">'+inl(m[1])+'</p>'; continue; }
-      if((m=l.match(/^[-*]\s+(.*)$/))){ if(ol){h+='</ol>';ol=false;} if(!ul){h+='<ul>';ul=true;} h+='<li>'+inl(m[1])+'</li>'; continue; }
-      if((m=l.match(/^\d+[.)]\s+(.*)$/))){ if(ul){h+='</ul>';ul=false;} if(!ol){h+='<ol>';ol=true;} h+='<li>'+inl(m[1])+'</li>'; continue; }
-      close(); h+='<p>'+inl(l)+'</p>';
-    } close(); return h;
-  }
-  function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('on'); setTimeout(()=>t.classList.remove('on'),3600); }
-  async function api(path, opts={}){
-    const r = await fetch(path, { ...opts, headers:{ 'Content-Type':'application/json', 'x-session':token, ...(opts.headers||{}) } });
+  async function api(qs, opts={}){
+    const r = await fetch('/api/admin?'+qs, { ...opts, headers:{ 'Content-Type':'application/json', 'x-admin-key':key } });
     const j = await r.json().catch(()=>({}));
-    if(r.status===401 && token){ logout(); throw new Error('Sessão expirada. Entre novamente.'); }
-    if(!r.ok) throw new Error(j.error || 'Erro na comunicação.');
+    if(!r.ok) throw new Error(j.error || 'Erro.');
     return j;
   }
 
   /* ---------- login ---------- */
-  $('tabLogin').onclick = ()=>{ mode='login'; $('tabLogin').classList.add('on'); $('tabReg').classList.remove('on');
-    $('nameRow').style.display='none'; $('gGo').textContent='Entrar'; $('gErr').textContent=''; };
-  $('tabReg').onclick = ()=>{ mode='register'; $('tabReg').classList.add('on'); $('tabLogin').classList.remove('on');
-    $('nameRow').style.display='block'; $('gGo').textContent='Criar meu acesso'; $('gErr').textContent=''; };
+  async function login(){
+    key = $('pw').value.trim(); $('gErr').textContent='';
+    if(!key){ $('gErr').textContent='Digite a senha.'; return; }
+    try{ await loadAll(); $('gate').style.display='none'; $('dash').style.display='block'; }
+    catch(err){ $('gErr').textContent = err.message; }
+  }
+  $('enter').onclick = login;
+  $('pw').addEventListener('keydown', e=>{ if(e.key==='Enter') login(); });
+  $('exit').onclick = ()=>{ key=''; $('pw').value=''; $('dash').style.display='none'; $('gate').style.display='block'; };
+  $('reload').onclick = ()=> loadAll().catch(e=>alert(e.message));
 
-  $('gGo').onclick = async ()=>{
-    $('gErr').textContent=''; $('gGo').disabled=true;
+  async function loadAll(){
+    const [d, o, s, f, p, c, l] = await Promise.all([
+      api('action=dashboard'), api('action=overview'), api('action=submissions'),
+      api('action=files'), api('action=prizes'), api('action=custom'), api('action=lessons')
+    ]);
+    dash=d; over=o.ranking||[]; subs=s.submissions||[]; files=f.files||[]; prizes=p.prizes||[];
+    custom=c.missions||[]; colabs=c.colaboradores||[]; lessons=l.lessons||[];
+    renderDash(); renderPessoas(); renderDocs(); renderFila(); renderEspeciais(); renderAulas(); renderPrizes();
+    const pend = dash.resumo.comprovantesPendentes;
+    const pill = $('pill');
+    if(pend){ pill.style.display='inline-block'; pill.textContent=pend; } else pill.style.display='none';
+  }
+
+  /* ======================= DASHBOARD ======================= */
+  function bar(label, value, pct, cls){
+    return '<div class="brow"><div class="btop"><span class="bl">'+esc(label)+'</span>'+
+      '<span class="bv">'+esc(value)+'</span></div>'+
+      '<div class="track '+(cls||'')+'"><i style="width:'+Math.max(pct,2)+'%"></i></div></div>';
+  }
+
+  function renderDash(){
+    const r = dash.resumo, e = dash.engajamento, c = dash.conquistas;
+
+    let h = '<div class="cards">'+
+      '<div class="card"><div class="k">Colaboradores</div><div class="v">'+r.colaboradores+'</div>'+
+        '<div class="s">'+e.ativos+' ativos ('+e.taxaAtivos+'%)</div></div>'+
+      '<div class="card"><div class="k">Missões concluídas</div><div class="v">'+r.missoesConcluidas+'</div>'+
+        '<div class="s">no programa todo</div></div>'+
+      '<div class="card"><div class="k">Pontos distribuídos</div><div class="v">'+r.pontosTotais+'</div>'+
+        '<div class="s">média de '+e.mediaPontos+' por pessoa</div></div>'+
+      '<div class="card'+(r.comprovantesPendentes?' alert':'')+'"><div class="k">Aprovações pendentes</div>'+
+        '<div class="v">'+r.comprovantesPendentes+'</div><div class="s">'+r.documentos+' documentos no total</div></div>'+
+      '<div class="card good"><div class="k">Maior sequência</div><div class="v">'+e.maiorSequencia+'</div>'+
+        '<div class="s">'+e.comSequencia+' pessoas em ritmo</div></div>'+
+      '</div>';
+
+    // Conquistas de impacto real
+    h += '<div class="panel"><div class="panel-head"><strong>Conquistas do programa</strong>'+
+      '<span class="hint">O que realmente mudou na vida das pessoas</span></div><div class="cards" style="padding:16px 18px;margin:0">'+
+      '<div class="card good"><div class="k">Dívidas quitadas</div><div class="v">'+c.dividasQuitadas+'</div></div>'+
+      '<div class="card good"><div class="k">Reservas mantidas</div><div class="v">'+c.reservasMantidas+'</div></div>'+
+      '<div class="card good"><div class="k">Objetivos alcançados</div><div class="v">'+c.objetivosAlcancados+'</div></div>'+
+      '<div class="card"><div class="k">Orçamentos montados</div><div class="v">'+c.orcamentosMontados+'</div></div>'+
+      '<div class="card"><div class="k">Planos de quitação</div><div class="v">'+c.planosQuitacao+'</div></div>'+
+      '<div class="card"><div class="k">Check-ins semanais</div><div class="v">'+c.checkins+'</div></div>'+
+      '</div></div>';
+
+    h += '<div class="grid2">';
+
+    // Distribuição por nível
+    h += '<div class="panel"><div class="panel-head"><strong>Distribuição por nível</strong></div><div class="pbody">'+
+      dash.porNivel.map(n => bar('Nível '+n.level+' — '+n.name, n.total+' ('+n.pct+'%)', n.pct)).join('') +
+      '</div></div>';
+
+    // Progresso por trilha
+    h += '<div class="panel"><div class="panel-head"><strong>Adesão por trilha</strong>'+
+      '<span class="hint">% médio de colaboradores</span></div><div class="pbody">'+
+      dash.trilhas.map(t => bar(t.name, t.pct+'%', t.pct, t.pct>=50?'g':(t.pct<20?'w':''))).join('') +
+      '</div></div>';
+
+    h += '</div>';
+
+    // Missão a missão
+    h += '<div class="panel"><div class="panel-head"><strong>Conclusão missão a missão</strong>'+
+      '<span class="hint">Onde as pessoas travam</span></div><div class="pbody">'+
+      dash.trilhas.map(t =>
+        '<div style="margin-bottom:16px"><div class="trackname" style="background:none;padding:0 0 8px;border:none">'+esc(t.name)+'</div>'+
+        t.missoes.map(m => bar(m.title, m.concluiram+' pessoas · '+m.pct+'%', m.pct, m.pct>=50?'g':(m.pct<20?'w':''))).join('')+
+        '</div>').join('') +
+      '</div></div>';
+
+    // Atividade recente
+    h += '<div class="panel"><div class="panel-head"><strong>Atividade recente</strong></div>'+
+      (dash.recentes.length
+        ? '<table><thead><tr><th>Quando</th><th>Colaborador</th><th>Missão</th><th>Situação</th><th>Pontos</th></tr></thead><tbody>'+
+          dash.recentes.map(a=>'<tr><td style="font-size:12.5px;color:var(--muted)">'+fmt(a.createdAt)+'</td>'+
+            '<td>'+esc(a.nome||a.matricula)+'</td><td>'+esc(a.missionTitle)+'</td>'+
+            '<td><span class="tag '+a.status+'">'+a.status+'</span></td>'+
+            '<td class="pts">'+(a.points?'+'+a.points:'—')+'</td></tr>').join('')+'</tbody></table>'
+        : '<div class="empty">Nenhuma atividade ainda.</div>')+
+      '</div>';
+
+    $('vDash').innerHTML = h;
+  }
+
+  /* ======================= COLABORADORES ======================= */
+  function renderPessoas(){
+    if(!over.length){ $('vPessoas').innerHTML = '<div class="panel"><div class="empty">Nenhum colaborador cadastrado ainda.</div></div>'; return; }
+    $('vPessoas').innerHTML =
+      '<div class="panel"><div class="panel-head"><strong>Colaboradores</strong>'+
+      '<span class="hint">Ranking visível apenas para você — eles não veem uns aos outros.</span></div>'+
+      '<table><thead><tr><th>#</th><th>Nome</th><th>Matrícula</th><th>Nível</th><th>Pontos</th><th>Missões</th><th>Sequência</th><th></th></tr></thead><tbody>'+
+      over.map((r,i)=>'<tr><td class="pos">'+(i+1)+'</td><td>'+esc(r.nome)+'</td><td>'+esc(r.matricula)+'</td>'+
+        '<td><span class="lvl">'+r.level.level+' — '+esc(r.level.name)+'</span></td>'+
+        '<td class="pts">'+r.points+'</td><td>'+r.missoes+'</td>'+
+        '<td>'+(r.streak>1?'🔥 '+r.streak:'—')+'</td>'+
+        '<td><button class="rowbtn" data-u="'+esc(r.matricula)+'">Ver ficha</button></td></tr>').join('')+
+      '</tbody></table></div>';
+    document.querySelectorAll('[data-u]').forEach(b=> b.onclick = ()=> openFicha(b.dataset.u));
+  }
+
+  async function openFicha(m){
+    $('vPessoas').innerHTML = '<div class="panel"><div class="empty">Carregando ficha…</div></div>';
     try{
-      const j = await api('/api/auth', { method:'POST', body: JSON.stringify({
-        action: mode, matricula: $('gMat').value, pin: $('gPin').value, nome: $('gNome').value }) });
-      token = j.token;
-      try{ sessionStorage.setItem('bs_token', token); }catch(e){}
-      await boot();
-    }catch(err){ $('gErr').textContent = err.message; }
-    finally{ $('gGo').disabled=false; }
-  };
-  $('gPin').addEventListener('keydown', e=>{ if(e.key==='Enter') $('gGo').click(); });
+      const j = await api('action=user&m='+encodeURIComponent(m));
+      const u = j.user;
+      let h = '<button class="back" id="voltar">← Voltar para a lista</button>';
 
-  function logout(){
-    token=null; state=null; chatHist=[];
-    try{ sessionStorage.removeItem('bs_token'); }catch(e){}
-    $('app').style.display='none'; $('userbox').style.display='none'; $('gate').style.display='block';
-    $('gPin').value='';
-  }
-  $('logout').onclick = logout;
+      h += '<div class="panel"><div class="ficha-head">'+
+        '<div class="bg">'+u.level.level+'</div>'+
+        '<div><div class="nm">'+esc(u.nome)+'</div>'+
+        '<div class="mt">Matrícula '+esc(u.matricula)+' · desde '+fmtD(u.createdAt)+'</div></div>'+
+        '<div class="st">'+
+          '<div><div class="k">Nível</div><div class="v">'+esc(u.level.name)+'</div></div>'+
+          '<div><div class="k">Pontos</div><div class="v">'+u.points+'</div></div>'+
+          '<div><div class="k">Missões</div><div class="v">'+u.missoesFeitas+'/'+u.totalMissoes+'</div></div>'+
+          '<div><div class="k">Sequência</div><div class="v">'+(u.streak||0)+'</div></div>'+
+        '</div></div>';
 
-  /* ---------- carregar estado ---------- */
-  async function boot(){
-    state = await api('/api/missions');
-    $('gate').style.display='none';
-    $('app').style.display='block';
-    $('userbox').style.display='flex';
-    $('uName').textContent = state.user.nome;
-    $('uMat').textContent = 'Matrícula ' + state.user.matricula;
-    renderHero(); renderMissions(); renderFeitas(); renderPrizes();
-    if(!chatHist.length) initChat();
-  }
+      // Missões cumpridas, trilha a trilha, com o que foi respondido
+      h += j.trilhas.map(t =>
+        '<div class="trackname">'+esc(t.name)+'</div>'+
+        t.missions.map(mi=>{
+          const icon = mi.concluida ? '<div class="mi done">✓</div>'
+                     : mi.pendente ? '<div class="mi wait">⏱</div>'
+                     : '<div class="mi">•</div>';
+          const vezes = (mi.repeatable && mi.vezes>1) ? ' <span class="tag aprovado">'+mi.vezes+'x</span>' : '';
+          let det = '';
+          if(mi.envios.length){
+            det = '<div class="mdet">'+ mi.envios.map(e=>{
+              const dados = Object.entries(e.data||{})
+                .filter(([k])=>k!=='answers')
+                .map(([k,v])=>k+': '+v).join('\n');
+              const doc = e.fileId ? '<button class="link" data-doc="'+esc(e.fileId)+'">Ver documento enviado</button>' : '';
+              return '<div class="env"><div class="eh"><span class="tag '+e.status+'">'+e.status+'</span>'+
+                (e.points?'<span class="tag aprovado">+'+e.points+' pts</span>':'')+
+                '<span>'+fmt(e.createdAt)+'</span></div>'+
+                (dados ? esc(dados)+'\n' : '')+ doc +
+                (e.note ? '<div style="margin-top:6px;color:var(--muted)">Obs.: '+esc(e.note)+'</div>' : '')+
+                '</div>';
+            }).join('') +'</div>';
+          }
+          return '<div class="mrow"><div class="mrow-top">'+icon+
+            '<span class="t'+(mi.concluida?'':' off')+'">'+esc(mi.title)+vezes+'</span>'+
+            '<span class="p">'+(mi.concluida?'+'+(mi.points*(mi.vezes||1)):'—')+'</span></div>'+ det +'</div>';
+        }).join('')
+      ).join('');
+      h += '</div>';
 
-  function renderHero(){
-    const L = state.user.level;
-    $('hBadge').textContent = L.level;
-    $('hLevel').textContent = 'Nível ' + L.level + ' — ' + L.name;
-    $('hPts').textContent = L.points + ' pontos';
-    $('hBar').style.width = L.progress + '%';
-    $('hPct').textContent = L.progress + '%';
-    $('hNext').textContent = L.nextName
-      ? 'Faltam ' + L.toNext + ' pts para o Nível ' + L.nextLevel + ' — ' + L.nextName
-      : 'Você chegou ao nível máximo!';
-    const s = state.user.streak || 0;
-    const st = $('hStreak');
-    if(s > 1){ st.style.display='inline-block'; st.textContent = '🔥 ' + s + ' semanas seguidas'; }
-    else st.style.display='none';
-  }
+      // Conversa
+      h += '<div id="convBox"><div class="panel"><div class="panel-head"><strong>Conversa com o Orientador</strong>'+
+        '<button class="rowbtn" id="verConv">Carregar conversa</button></div>'+
+        '<div class="empty">Clique para carregar a conversa deste colaborador.</div></div></div>';
 
-  function subStatus(missionId){
-    const s = (state.submissions||[]).filter(x=>x.missionId===missionId);
-    if(s.some(x=>x.status==='pendente')) return 'pendente';
-    return null;
-  }
-
-  function renderMissions(){
-    const done = state.user.done || {};
-    $('vMissoes').innerHTML = state.tracks.map(t=>{
-      const rows = t.missions.map(m=>{
-        const feito = done[m.id] || 0;
-        const pend = subStatus(m.id);
-        const concluida = feito > 0 && !m.repeatable;
-        let icon = '<div class="m-icon">•</div>', right = '';
-        if(concluida){ icon = '<div class="m-icon done">✓</div>'; right = '<span class="m-tag done">Concluída</span>'; }
-        else if(pend){ icon = '<div class="m-icon wait">⏱</div>'; right = '<span class="m-tag wait">Em análise</span>'; }
-        else { right = '<button class="m-go" data-m="'+m.id+'">Fazer</button>'; }
-        const extra = (m.repeatable && feito) ? ' · feita '+feito+'x' : '';
-        const esp = m.custom ? ' <span class="m-tag esp">Especial</span>' : '';
-        return '<div class="mission">'+icon+
-          '<div class="m-body"><div class="t">'+esc(m.title)+esp+'</div>'+
-          '<div class="d">'+esc(m.desc)+extra+'</div></div>'+
-          '<span class="m-pts">+'+m.points+'</span>'+right+'</div>';
-      }).join('');
-      return '<div class="track"><div class="track-head"><h3>'+esc(t.name)+'</h3><p>'+esc(t.intro)+'</p></div>'+rows+'</div>';
-    }).join('');
-    document.querySelectorAll('[data-m]').forEach(b=> b.onclick = ()=> openMission(b.dataset.m));
+      $('vPessoas').innerHTML = h;
+      $('voltar').onclick = renderPessoas;
+      $('verConv').onclick = ()=> loadConv(m);
+      document.querySelectorAll('[data-doc]').forEach(b=> b.onclick = ()=> viewDoc(b.dataset.doc, b));
+    }catch(err){
+      $('vPessoas').innerHTML = '<div class="panel"><div class="empty">'+esc(err.message)+'</div></div>';
+    }
   }
 
-  function renderFeitas(){
-    const subs = (state.submissions||[]).slice().sort((a,b)=>b.createdAt-a.createdAt);
-    const ok = subs.filter(s=>s.status==='aprovado');
+  async function loadConv(m){
+    const box = $('convBox');
+    box.innerHTML = '<div class="panel"><div class="empty">Carregando…</div></div>';
+    try{
+      const j = await api('action=conversation&m='+encodeURIComponent(m));
+      const msgs = j.conversation.messages || [];
+      box.innerHTML = '<div class="panel"><div class="panel-head"><strong>Conversa com o Orientador</strong>'+
+        '<span class="hint">Atualizada em '+fmt(j.conversation.updatedAt)+'</span></div><div class="pbody">'+
+        (msgs.map(x=>'<div class="msg '+esc(x.role)+'"><div class="r">'+(x.role==='user'?'Colaborador':'Orientador')+'</div>'+
+          '<div class="bd">'+esc(x.content)+'</div></div>').join('') || '<div class="empty">Conversa vazia.</div>')+
+        '</div></div>';
+    }catch(err){
+      box.innerHTML = '<div class="panel"><div class="empty">'+esc(err.message)+'</div></div>';
+    }
+  }
+
+  /* ======================= DOCUMENTOS ======================= */
+  function renderDocs(){
+    if(!files.length){
+      $('vDocs').innerHTML = '<div class="panel"><div class="empty">Nenhum documento enviado ainda.</div></div>';
+      return;
+    }
+    const pessoas = [...new Set(files.map(f=>f.matricula))];
+    const missoes = [...new Set(files.map(f=>f.missionTitle))];
+    $('vDocs').innerHTML = '<div class="panel">'+
+      '<div class="panel-head"><strong>Documentos enviados</strong>'+
+      '<span class="hint">'+files.length+' arquivo(s) · clique para ampliar ou baixar</span></div>'+
+      '<div class="filters">'+
+        '<input type="text" id="dq" placeholder="Buscar por nome ou matrícula…">'+
+        '<select id="dm"><option value="">Todas as missões</option>'+
+          missoes.map(m=>'<option>'+esc(m)+'</option>').join('')+'</select>'+
+        '<select id="ds"><option value="">Todas as situações</option>'+
+          '<option value="pendente">Pendente</option><option value="aprovado">Aprovado</option>'+
+          '<option value="recusado">Recusado</option></select>'+
+      '</div><div class="docs" id="docGrid"></div></div>';
+    ['dq','dm','ds'].forEach(id => $(id).oninput = drawDocs);
+    drawDocs();
+  }
+
+  function drawDocs(){
+    const q = ($('dq').value||'').toLowerCase();
+    const fm = $('dm').value, fs = $('ds').value;
+    const list = files.filter(f =>
+      (!q || (f.nome||'').toLowerCase().includes(q) || String(f.matricula).includes(q)) &&
+      (!fm || f.missionTitle===fm) && (!fs || f.status===fs));
+
+    $('docGrid').innerHTML = list.length ? list.map(f=>{
+      const pdf = (f.mime||'').includes('pdf');
+      return '<div class="doc"><div class="thumb" data-open="'+esc(f.fileId)+'" data-pdf="'+pdf+'" id="th_'+esc(f.fileId)+'">'+
+        '<div class="ph">'+(pdf?'📄 PDF':'Clique para carregar')+'</div></div>'+
+        '<div class="meta"><div class="n">'+esc(f.nome||f.matricula)+'</div>'+
+        '<div class="m">'+esc(f.missionTitle)+'<br>'+fmtD(f.createdAt)+'</div>'+
+        '<div class="b"><span class="tag '+f.status+'">'+f.status+'</span>'+
+        '<button class="link" data-dl="'+esc(f.fileId)+'" data-name="'+esc(f.fileName)+'">Baixar</button></div>'+
+        '</div></div>';
+    }).join('') : '<div class="empty" style="grid-column:1/-1">Nenhum documento com esses filtros.</div>';
+
+    document.querySelectorAll('[data-open]').forEach(t=> t.onclick = ()=> viewDoc(t.dataset.open, t));
+    document.querySelectorAll('[data-dl]').forEach(b=> b.onclick = ()=> download(b.dataset.dl, b.dataset.name));
+  }
+
+  const cache = {};
+  async function fetchDoc(fileId){
+    if(cache[fileId]) return cache[fileId];
+    const j = await api('action=file&id='+encodeURIComponent(fileId));
+    cache[fileId] = j.file;
+    return j.file;
+  }
+  async function viewDoc(fileId, el){
+    try{
+      const data = await fetchDoc(fileId);
+      if(data.startsWith('data:application/pdf')){ window.open(data, '_blank'); return; }
+      // miniatura na grade
+      const th = $('th_'+fileId);
+      if(th && el === th){ th.innerHTML = '<img src="'+data+'" alt="Documento">'; th.onclick = ()=> lightbox(data); return; }
+      lightbox(data);
+    }catch(err){ alert(err.message); }
+  }
+  function lightbox(src){ $('lbImg').src = src; $('lightbox').classList.add('on'); }
+  $('lightbox').onclick = ()=> $('lightbox').classList.remove('on');
+
+  async function download(fileId, name){
+    try{
+      const data = await fetchDoc(fileId);
+      const a = document.createElement('a');
+      a.href = data; a.download = name || 'comprovante';
+      document.body.appendChild(a); a.click(); a.remove();
+    }catch(err){ alert(err.message); }
+  }
+
+  /* ======================= APROVAÇÕES ======================= */
+  function renderFila(){
     const pend = subs.filter(s=>s.status==='pendente');
-    const rec = subs.filter(s=>s.status==='recusado');
-
-    if(!subs.length){
-      $('vFeitas').innerHTML = '<div class="track"><div class="empty">Você ainda não concluiu nenhuma missão. Comece pela aba <b>Missões</b> — a primeira já vale 50 pontos.</div></div>';
-      return;
+    const hist = subs.filter(s=>s.status!=='pendente').slice(0,40);
+    let h = '<div class="panel"><div class="panel-head"><strong>Comprovantes aguardando aprovação</strong>'+
+      '<span class="hint">Os pontos só entram depois que você aprovar.</span></div>'+
+      (pend.length ? pend.map(subCard).join('') : '<div class="empty">Nenhum comprovante pendente.</div>')+'</div>';
+    if(hist.length){
+      h += '<div class="panel"><div class="panel-head"><strong>Histórico de envios</strong></div>'+
+        hist.map(subCard).join('')+'</div>';
     }
-
-    const card = s => {
-      const dados = Object.entries(s.data||{})
-        .filter(([k])=>k!=='answers')
-        .map(([k,v])=> v ? '<div class="fd"><b>'+esc(k)+':</b> '+esc(String(v))+'</div>' : '')
-        .join('');
-      const tag = s.status==='aprovado' ? '<span class="m-tag done">+'+s.points+' pts</span>'
-                : s.status==='pendente' ? '<span class="m-tag wait">Em análise</span>'
-                : '<span class="m-tag bad">Não aprovada</span>';
-      return '<div class="feito"><div class="fh"><span class="ft">'+esc(s.missionTitle||'Missão')+'</span>'+tag+'</div>'+
-        '<div class="fw">'+ new Date(s.createdAt).toLocaleDateString('pt-BR') +
-        (s.hasFile ? ' · comprovante enviado' : '') + '</div>'+
-        (dados ? '<div class="fb">'+dados+'</div>' : '')+
-        (s.note ? '<div class="fn">'+esc(s.note)+'</div>' : '')+
-        '</div>';
-    };
-
-    let h = '<div class="track"><div class="track-head"><h3>Minhas conquistas</h3>'+
-      '<p>'+ok.length+' missão(ões) aprovada(s)'+(pend.length?' · '+pend.length+' em análise':'')+'</p></div>'+
-      (ok.length ? ok.map(card).join('') : '<div class="empty">Nenhuma missão aprovada ainda.</div>')+'</div>';
-
-    if(pend.length){
-      h += '<div class="track"><div class="track-head"><h3>Aguardando aprovação</h3>'+
-        '<p>O gestor está analisando. Os pontos entram assim que for aprovado.</p></div>'+
-        pend.map(card).join('')+'</div>';
-    }
-    if(rec.length){
-      h += '<div class="track"><div class="track-head"><h3>Não aprovadas</h3>'+
-        '<p>Você pode tentar de novo — sem perder pontos.</p></div>'+
-        rec.map(card).join('')+'</div>';
-    }
-    $('vFeitas').innerHTML = h;
+    $('vFila').innerHTML = h;
+    document.querySelectorAll('[data-vf]').forEach(b=> b.onclick = ()=> viewDoc(b.dataset.vf, b));
+    document.querySelectorAll('[data-ok]').forEach(b=> b.onclick = ()=> review(b.dataset.ok,'aprovar',b));
+    document.querySelectorAll('[data-no]').forEach(b=> b.onclick = ()=> review(b.dataset.no,'recusar',b));
   }
 
+  function subCard(s){
+    const dados = (s.type==='proof') ? '' :
+      '<div class="sub-data">'+ esc(Object.entries(s.data||{}).filter(([k])=>k!=='answers')
+        .map(([k,v])=>k+': '+v).join('\n') || '—') +'</div>';
+    const doc = s.fileId ? '<div style="margin-bottom:10px"><button class="link" data-vf="'+esc(s.fileId)+'">Ver documento enviado</button></div>' : '';
+    const acts = s.status==='pendente'
+      ? '<div class="acts"><input type="text" id="n_'+s.id+'" placeholder="Observação (opcional)">'+
+        '<button class="ok" data-ok="'+s.id+'">Aprovar</button>'+
+        '<button class="no" data-no="'+s.id+'">Recusar</button></div>'
+      : (s.note ? '<div class="what">Observação: '+esc(s.note)+'</div>' : '');
+    return '<div class="sub"><div class="sub-top"><span class="who">'+esc(s.nome||s.matricula)+'</span>'+
+      '<span class="tag '+s.status+'">'+s.status+'</span>'+
+      (s.points ? '<span class="tag aprovado">+'+s.points+' pts</span>' : '')+
+      '<span class="when">'+fmt(s.createdAt)+'</span></div>'+
+      '<div class="what">'+esc(s.missionTitle)+'</div>'+ dados + doc + acts +'</div>';
+  }
+
+  async function review(id, decision, btn){
+    btn.disabled = true; btn.textContent = '…';
+    const note = ($('n_'+id) || {}).value || '';
+    try{
+      await api('action=review', { method:'POST', body: JSON.stringify({ id, decision, note }) });
+      await loadAll();
+    }catch(err){ alert(err.message); btn.disabled=false; }
+  }
+
+
+
+  /* ======================= AULAS ======================= */
+  let quizCount = 0;
+
+  function renderAulas(){
+    // opções de pré-requisito: missões do catálogo padrão
+    const missOpts = '<option value="">Nenhum (aula avulsa)</option>';
+
+    let h = '<div class="panel"><div class="panel-head"><strong>Adicionar aula</strong>'+
+      '<span class="hint">Suba o vídeo no YouTube (pode ser "não listado") e cole o link aqui.</span></div><div class="pbody">'+
+      '<div class="grid2">'+
+        '<div><label for="lTitulo">Título da aula</label>'+
+        '<input type="text" id="lTitulo" placeholder="Ex.: Como funciona o rotativo do cartão"></div>'+
+        '<div><label for="lVideo">Link do vídeo no YouTube</label>'+
+        '<input type="text" id="lVideo" placeholder="https://youtu.be/..."></div>'+
+      '</div>'+
+      '<div style="margin-top:12px"><label for="lDesc">Descrição</label>'+
+      '<textarea id="lDesc" placeholder="Um resumo do que a aula ensina"></textarea></div>'+
+      '<div class="grid2" style="margin-top:12px">'+
+        '<div><label for="lTrilha">Trilha (agrupa as aulas)</label>'+
+        '<input type="text" id="lTrilha" placeholder="Ex.: Cartão de crédito"></div>'+
+        '<div><label for="lPontos">Pontos ao concluir</label>'+
+        '<input type="number" id="lPontos" value="40" min="0" max="500"></div>'+
+      '</div>'+
+      '<div class="callout">Para pontuar, o colaborador precisa assistir ~90% do vídeo <b>e</b> acertar o quiz abaixo. '+
+        'Sem quiz, basta assistir. Recomendo pelo menos uma pergunta.</div>'+
+      '<div id="quizList"></div>'+
+      '<button class="rowbtn" id="addQ" type="button" style="margin-top:6px">+ Adicionar pergunta</button>'+
+      '<div style="margin-top:16px"><button class="btn" id="lSave" type="button">Publicar aula</button>'+
+      '<span id="lMsg" style="margin-left:12px;font-size:13px;color:var(--muted)"></span></div>'+
+      '</div></div>';
+
+    h += '<div class="panel"><div class="panel-head"><strong>Aulas publicadas</strong>'+
+      '<span class="hint">'+lessons.length+' aula(s)</span></div>'+
+      (lessons.length
+        ? '<table><thead><tr><th>Aula</th><th>Trilha</th><th>Quiz</th><th>Pontos</th><th>Assistiram</th><th></th></tr></thead><tbody>'+
+          lessons.map(l=>'<tr>'+
+            '<td><b>'+esc(l.titulo)+'</b><div style="font-size:12px;color:var(--muted)">'+
+              '<a class="link" href="https://youtu.be/'+esc(l.videoId)+'" target="_blank" rel="noopener">ver no YouTube ↗</a></div></td>'+
+            '<td>'+esc(l.trilha||'—')+'</td>'+
+            '<td>'+((l.quiz&&l.quiz.length)?l.quiz.length+' pergunta(s)':'sem quiz')+'</td>'+
+            '<td class="pts">+'+l.pontos+'</td>'+
+            '<td>'+l.assistiram+'/'+l.total+'</td>'+
+            '<td><button class="rowbtn" data-ldel="'+esc(l.id)+'">Excluir</button></td></tr>').join('')+
+          '</tbody></table>'
+        : '<div class="empty">Nenhuma aula publicada ainda.</div>')+
+      '</div>';
+
+    $('vAulas').innerHTML = h;
+    quizCount = 0; addQuestion();
+    $('addQ').onclick = addQuestion;
+    $('lSave').onclick = salvarAula;
+    document.querySelectorAll('[data-ldel]').forEach(b=> b.onclick = ()=> excluirAula(b.dataset.ldel));
+  }
+
+  function addQuestion(){
+    if(quizCount >= 5){ return; }
+    const i = quizCount++;
+    const div = document.createElement('div');
+    div.className = 'qbuilder'; div.dataset.q = i;
+    div.innerHTML = '<div class="qb-head"><span>Pergunta '+(i+1)+'</span>'+
+      '<button class="qb-del" type="button">remover</button></div>'+
+      '<input type="text" class="qb-q" placeholder="Enunciado da pergunta">'+
+      '<div class="qb-opts">'+
+        [0,1,2,3].map(j=>'<label class="qb-opt"><input type="radio" name="correct'+i+'" value="'+j+'"'+(j===0?' checked':'')+'>'+
+          '<input type="text" class="qb-o" placeholder="Alternativa '+(j+1)+(j>1?' (opcional)':'')+'"></label>').join('')+
+      '</div><div class="qb-hint">Marque o círculo da alternativa correta.</div>';
+    $('quizList').appendChild(div);
+    div.querySelector('.qb-del').onclick = ()=>{ div.remove(); };
+  }
+
+  function coletarQuiz(){
+    const quiz = [];
+    let erro = null;
+    document.querySelectorAll('.qbuilder').forEach(div=>{
+      const q = div.querySelector('.qb-q').value.trim();
+      const opts = [...div.querySelectorAll('.qb-o')].map(o=>o.value.trim());
+      // considera as alternativas preenchidas, do início até a última não-vazia
+      let last = -1;
+      opts.forEach((o,idx)=>{ if(o) last = idx; });
+      const usadas = opts.slice(0, last + 1);
+      if(!q && last < 0) return; // pergunta em branco: ignora
+      if(!q){ erro = 'Há uma pergunta sem enunciado.'; return; }
+      if(usadas.length < 2){ erro = 'Cada pergunta precisa de ao menos 2 alternativas.'; return; }
+      if(usadas.some(o=>!o)){ erro = 'Preencha as alternativas em ordem, sem deixar buracos.'; return; }
+      const i = div.dataset.q;
+      const answer = parseInt((div.querySelector('input[name="correct'+i+'"]:checked')||{}).value || '0', 10);
+      if(answer >= usadas.length){ erro = 'A alternativa marcada como correta está vazia.'; return; }
+      quiz.push({ q, options: usadas, answer });
+    });
+    return { quiz, erro };
+  }
+
+  async function salvarAula(){
+    const msg = $('lMsg'); msg.textContent='';
+    if(!$('lTitulo').value.trim()){ msg.textContent='Dê um título à aula.'; return; }
+    if(!$('lVideo').value.trim()){ msg.textContent='Cole o link do vídeo.'; return; }
+    const { quiz, erro } = coletarQuiz();
+    if(erro){ msg.textContent = erro; return; }
+    const b = $('lSave'); b.disabled=true; b.textContent='Publicando…';
+    try{
+      const r = await api('action=lesson', { method:'POST', body: JSON.stringify({
+        titulo: $('lTitulo').value, video: $('lVideo').value, descricao: $('lDesc').value,
+        trilha: $('lTrilha').value, pontos: $('lPontos').value, quiz })});
+      if(!r.ok){ throw new Error(r.error||'Erro.'); }
+      await loadAll();
+      document.querySelector('[data-v=aulas]').click();
+    }catch(err){ msg.textContent = err.message; b.disabled=false; b.textContent='Publicar aula'; }
+  }
+
+  async function excluirAula(id){
+    if(!confirm('Excluir esta aula? Quem já concluiu mantém os pontos.')) return;
+    try{ await api('action=lessonDelete', { method:'POST', body: JSON.stringify({ id }) }); await loadAll(); document.querySelector('[data-v=aulas]').click(); }
+    catch(err){ alert(err.message); }
+  }
+
+  /* ======================= EXPORTAR CSV ======================= */
+  // Usa ponto-e-vírgula (padrão do Excel em pt-BR) e BOM, para acentos não quebrarem.
+  function toCSV(rows){
+    const cell = v => {
+      const t = String(v == null ? '' : v).replace(/"/g,'""').replace(/\r?\n/g,' ');
+      return '"'+t+'"';
+    };
+    return rows.map(r => r.map(cell).join(';')).join('\r\n');
+  }
+  function baixarCSV(nome, rows){
+    const blob = new Blob(['\ufeff' + toCSV(rows)], { type:'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nome + '_' + new Date().toISOString().slice(0,10) + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  }
+
+  function csvColaboradores(){
+    const rows = [['Posicao','Nome','Matricula','Nivel','Nome do nivel','Pontos','Missoes concluidas','Sequencia','Ultimo check-in','Cadastro']];
+    over.forEach((r,i)=> rows.push([ i+1, r.nome, r.matricula, r.level.level, r.level.name,
+      r.points, r.missoes, r.streak, fmtD(r.lastCheckin), fmtD(r.createdAt) ]));
+    return rows;
+  }
+  function csvMissoes(){
+    const rows = [['Trilha','Missao','Pontos','Tipo','Concluiram','% do total','Vezes realizada']];
+    dash.trilhas.forEach(t => t.missoes.forEach(m =>
+      rows.push([ t.name, m.title, m.points, m.type, m.concluiram, m.pct+'%', m.vezes ])));
+    custom.forEach(m => rows.push([ 'Missoes especiais', m.title, m.points, m.type,
+      m.concluidos, m.totalAlvos ? Math.round(m.concluidos/m.totalAlvos*100)+'%' : '—', m.concluidos ]));
+    lessons.forEach(l => rows.push([ 'Aulas', l.titulo, l.pontos, 'video',
+      l.assistiram, l.total ? Math.round(l.assistiram/l.total*100)+'%' : '—', l.assistiram ]));
+    return rows;
+  }
+  function csvEnvios(){
+    const rows = [['Data','Matricula','Nome','Missao','Tipo','Situacao','Pontos','Tem documento','Respostas','Observacao']];
+    subs.forEach(s=>{
+      const dados = Object.entries(s.data||{}).filter(([k])=>k!=='answers')
+        .map(([k,v])=>k+': '+v).join(' | ');
+      rows.push([ fmt(s.createdAt), s.matricula, s.nome, s.missionTitle, s.type,
+        s.status, s.points||0, s.fileId?'sim':'nao', dados, s.note||'' ]);
+    });
+    return rows;
+  }
+  function csvDocumentos(){
+    const rows = [['Data','Matricula','Nome','Missao','Arquivo','Tipo','Situacao']];
+    files.forEach(f=> rows.push([ fmt(f.createdAt), f.matricula, f.nome, f.missionTitle,
+      f.fileName, f.mime, f.status ]));
+    return rows;
+  }
+  function csvConquistas(){
+    const c = dash.conquistas, e = dash.engajamento, r = dash.resumo;
+    const rows = [['Indicador','Valor']];
+    rows.push(['Colaboradores', r.colaboradores]);
+    rows.push(['Colaboradores ativos', e.ativos]);
+    rows.push(['Taxa de ativos', e.taxaAtivos+'%']);
+    rows.push(['Pontos distribuidos', r.pontosTotais]);
+    rows.push(['Media de pontos', e.mediaPontos]);
+    rows.push(['Missoes concluidas', r.missoesConcluidas]);
+    rows.push(['Dividas quitadas', c.dividasQuitadas]);
+    rows.push(['Reservas mantidas', c.reservasMantidas]);
+    rows.push(['Objetivos alcancados', c.objetivosAlcancados]);
+    rows.push(['Orcamentos montados', c.orcamentosMontados]);
+    rows.push(['Planos de quitacao', c.planosQuitacao]);
+    rows.push(['Check-ins semanais', c.checkins]);
+    rows.push(['Maior sequencia', e.maiorSequencia]);
+    rows.push(['Comprovantes pendentes', r.comprovantesPendentes]);
+    rows.push([]);
+    rows.push(['Nivel','Nome','Colaboradores','% do total']);
+    dash.porNivel.forEach(n=> rows.push([ n.level, n.name, n.total, n.pct+'%' ]));
+    return rows;
+  }
+
+  $('csv').onclick = ()=>{
+    const menu = [
+      ['Colaboradores (ranking)', 'colaboradores', csvColaboradores],
+      ['Missões (conclusão)', 'missoes', csvMissoes],
+      ['Envios (tudo o que foi respondido)', 'envios', csvEnvios],
+      ['Documentos enviados', 'documentos', csvDocumentos],
+      ['Indicadores e conquistas', 'indicadores', csvConquistas],
+    ];
+    const box = $('csvMenu');
+    box.innerHTML = '<div class="csvbox"><div class="csvh">Exportar para CSV</div>'+
+      menu.map((m,i)=>'<button class="csvi" data-c="'+i+'">'+m[0]+'</button>').join('')+
+      '<button class="csvi all" data-c="all">Baixar todos os arquivos</button>'+
+      '<button class="csvi cancel" data-c="x">Cancelar</button></div>';
+    box.classList.add('on');
+    box.querySelectorAll('[data-c]').forEach(b=>{
+      b.onclick = ()=>{
+        const v = b.dataset.c;
+        if(v === 'x'){ box.classList.remove('on'); return; }
+        if(v === 'all'){ menu.forEach((m,i)=> setTimeout(()=> baixarCSV(m[1], m[2]()), i*350)); }
+        else { const m = menu[parseInt(v,10)]; baixarCSV(m[1], m[2]()); }
+        box.classList.remove('on');
+      };
+    });
+  };
+
+  /* ======================= MISSÕES ESPECIAIS ======================= */
+  function renderEspeciais(){
+    const opts = colabs.map(c =>
+      '<label class="chk"><input type="checkbox" class="who" value="'+esc(c.matricula)+'"> '+
+      esc(c.nome)+' <span class="mm">'+esc(c.matricula)+'</span></label>').join('')
+      || '<div class="empty" style="padding:12px">Nenhum colaborador cadastrado ainda.</div>';
+
+    let h = '<div class="panel"><div class="panel-head"><strong>Criar missão especial</strong>'+
+      '<span class="hint">Vale apenas para os colaboradores que você escolher.</span></div><div class="pbody">'+
+      '<div class="grid2">'+
+        '<div><label for="cTitle">Título da missão</label>'+
+        '<input type="text" id="cTitle" placeholder="Ex.: Renegociar a dívida do consignado"></div>'+
+        '<div><label for="cPoints">Pontos</label>'+
+        '<input type="number" id="cPoints" value="100" min="0" max="1000"></div>'+
+      '</div>'+
+      '<div style="margin-top:12px"><label for="cDesc">Descrição</label>'+
+      '<textarea id="cDesc" placeholder="Explique o que a pessoa precisa fazer"></textarea></div>'+
+      '<div class="grid2" style="margin-top:12px">'+
+        '<div><label for="cType">Como será comprovada</label>'+
+        '<select id="cType">'+
+          '<option value="form">Relato escrito (o colaborador descreve)</option>'+
+          '<option value="proof">Comprovante (foto/PDF, você aprova)</option>'+
+        '</select></div>'+
+        '<div><label for="cHint">Instrução ao colaborador</label>'+
+        '<input type="text" id="cHint" placeholder="Ex.: envie o acordo assinado"></div>'+
+      '</div>'+
+      '<label class="chk" style="margin-top:12px"><input type="checkbox" id="cRep"> Pode ser cumprida mais de uma vez</label>'+
+      '<div style="margin-top:14px"><label>Para quem vale esta missão</label>'+
+        '<div class="whobox">'+
+          '<div class="whotools"><button class="rowbtn" id="selAll" type="button">Selecionar todos</button>'+
+          '<button class="rowbtn" id="selNone" type="button">Limpar</button></div>'+
+          '<div class="wholist">'+opts+'</div>'+
+        '</div></div>'+
+      '<button class="btn" id="cSave" type="button" style="margin-top:14px">Criar missão</button>'+
+      '<span id="cMsg" style="margin-left:12px;font-size:13px;color:var(--muted)"></span>'+
+      '</div></div>';
+
+    h += '<div class="panel"><div class="panel-head"><strong>Missões especiais criadas</strong>'+
+      '<span class="hint">'+custom.length+' missão(ões)</span></div>'+
+      (custom.length
+        ? '<table><thead><tr><th>Missão</th><th>Pontos</th><th>Tipo</th><th>Para quem</th><th>Concluíram</th><th></th></tr></thead><tbody>'+
+          custom.map(m=>{
+            const nomes = (m.assignees||[]).map(a=>{
+              const c = colabs.find(x=>x.matricula===a);
+              return c ? c.nome : a;
+            });
+            const lista = nomes.length>3 ? nomes.slice(0,3).join(', ')+' +'+(nomes.length-3) : nomes.join(', ');
+            return '<tr><td><b>'+esc(m.title)+'</b>'+(m.desc?'<div style="font-size:12.5px;color:var(--muted);margin-top:2px">'+esc(m.desc)+'</div>':'')+'</td>'+
+              '<td class="pts">+'+m.points+'</td>'+
+              '<td><span class="tag '+(m.type==='proof'?'pendente':'aprovado')+'">'+(m.type==='proof'?'comprovante':'relato')+'</span></td>'+
+              '<td style="font-size:13px">'+esc(lista)+'</td>'+
+              '<td>'+m.concluidos+'/'+m.totalAlvos+'</td>'+
+              '<td><button class="rowbtn" data-del="'+esc(m.id)+'">Excluir</button></td></tr>';
+          }).join('')+'</tbody></table>'
+        : '<div class="empty">Nenhuma missão especial criada ainda.</div>')+
+      '</div>';
+
+    $('vEspeciais').innerHTML = h;
+
+    $('selAll').onclick = ()=> document.querySelectorAll('.who').forEach(c=>c.checked=true);
+    $('selNone').onclick = ()=> document.querySelectorAll('.who').forEach(c=>c.checked=false);
+    $('cSave').onclick = criarMissao;
+    document.querySelectorAll('[data-del]').forEach(b=> b.onclick = ()=> excluirMissao(b.dataset.del));
+  }
+
+  async function criarMissao(){
+    const assignees = [...document.querySelectorAll('.who:checked')].map(c=>c.value);
+    const b = $('cSave'), msg = $('cMsg');
+    msg.textContent = '';
+    if(!$('cTitle').value.trim()){ msg.textContent='Dê um título à missão.'; return; }
+    if(!assignees.length){ msg.textContent='Escolha ao menos um colaborador.'; return; }
+
+    b.disabled = true; b.textContent = 'Criando…';
+    try{
+      const tipo = $('cType').value;
+      await api('action=custom', { method:'POST', body: JSON.stringify({
+        title: $('cTitle').value, desc: $('cDesc').value,
+        points: $('cPoints').value, type: tipo,
+        repeatable: $('cRep').checked, assignees,
+        proofHint: tipo==='proof' ? $('cHint').value : '',
+        fieldLabel: tipo==='form' ? ($('cHint').value || 'Conte como você cumpriu esta missão') : '',
+      })});
+      await loadAll();
+      msg.textContent = 'Missão criada ✓';
+    }catch(err){ msg.textContent = err.message; }
+    finally{ b.disabled=false; b.textContent='Criar missão'; }
+  }
+
+  async function excluirMissao(id){
+    if(!confirm('Excluir esta missão especial? Os pontos já concedidos permanecem.')) return;
+    try{
+      await api('action=customDelete', { method:'POST', body: JSON.stringify({ id }) });
+      await loadAll();
+    }catch(err){ alert(err.message); }
+  }
+
+  /* ======================= PRÊMIOS ======================= */
   function renderPrizes(){
-    const prizes = state.prizes || [];
-    const lvl = state.user.level.level;
-    if(!prizes.length){
-      $('vPremios').innerHTML = '<div class="track"><div class="empty">Os prêmios de cada nível ainda estão sendo definidos pela empresa. Continue cumprindo missões — os pontos ficam guardados.</div></div>';
-      return;
+    const byLevel = {}; prizes.forEach(p=> byLevel[p.level]=p);
+    let rows='';
+    for(let lv=2; lv<=5; lv++){
+      const p = byLevel[lv] || {};
+      rows += '<div class="prizerow"><div class="lv">'+lv+'</div>'+
+        '<div><label for="pt_'+lv+'">Prêmio do nível '+lv+'</label>'+
+        '<input type="text" id="pt_'+lv+'" value="'+esc(p.titulo||'')+'" placeholder="Ex.: Vale-compras"></div>'+
+        '<div><label for="pd_'+lv+'">Descrição / regras</label>'+
+        '<textarea id="pd_'+lv+'" placeholder="Como o colaborador recebe">'+esc(p.descricao||'')+'</textarea></div></div>';
     }
-    const rows = prizes.filter(p=>p.ativo!==false).sort((a,b)=>a.level-b.level).map(p=>{
-      const ok = lvl >= p.level;
-      return '<div class="prize'+(ok?' reached':'')+'"><div class="lv">'+p.level+'</div>'+
-        '<div><div class="pt">'+esc(p.titulo||('Prêmio do nível '+p.level))+(ok?' ✓':'')+'</div>'+
-        '<div class="pd">'+esc(p.descricao||'')+'</div></div></div>';
-    }).join('');
-    $('vPremios').innerHTML = '<div class="track"><div class="track-head"><h3>Prêmios por nível</h3>'+
-      '<p>Conquista garantida: bateu o nível, o prêmio é seu.</p></div>'+rows+'</div>';
+    $('vPremios').innerHTML = '<div class="panel"><div class="panel-head"><strong>Cadastro de prêmios</strong>'+
+      '<span class="hint">Marcos garantidos: bateu o nível, ganhou.</span></div>'+ rows +
+      '<div class="note">Deixe em branco os níveis ainda não definidos — o colaborador vê apenas os preenchidos. O nível 1 é o ponto de partida e não tem prêmio.</div>'+
+      '<div style="padding:16px 18px"><button class="btn" id="savePrizes" type="button">Salvar prêmios</button></div></div>';
+    $('savePrizes').onclick = savePrizes;
+  }
+
+  async function savePrizes(){
+    const list=[];
+    for(let lv=2; lv<=5; lv++){
+      const t=$('pt_'+lv).value.trim(), d=$('pd_'+lv).value.trim();
+      if(t||d) list.push({ level:lv, titulo:t, descricao:d, ativo:true });
+    }
+    const b=$('savePrizes'); b.disabled=true; b.textContent='Salvando…';
+    try{
+      await api('action=prizes', { method:'POST', body: JSON.stringify({ prizes:list }) });
+      await loadAll();
+      b.textContent='Salvo ✓'; setTimeout(()=>{ b.textContent='Salvar prêmios'; b.disabled=false; },1500);
+    }catch(err){ alert(err.message); b.disabled=false; b.textContent='Salvar prêmios'; }
   }
 
   /* ---------- navegação ---------- */
-  document.querySelectorAll('.nav button').forEach(b=>{
+  document.querySelectorAll('.nav [data-v]').forEach(b=>{
     b.onclick = ()=>{
-      document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on'));
+      document.querySelectorAll('.nav [data-v]').forEach(x=>x.classList.remove('on'));
       b.classList.add('on');
-      const v = b.dataset.view;
-      $('vMissoes').style.display = v==='missoes' ? 'block':'none';
-      $('vFeitas').style.display  = v==='feitas'  ? 'block':'none';
-      $('vChat').style.display    = v==='chat'    ? 'block':'none';
+      const v = b.dataset.v;
+      $('vDash').style.display    = v==='dash'    ? 'block':'none';
+      $('vPessoas').style.display = v==='pessoas' ? 'block':'none';
+      $('vDocs').style.display    = v==='docs'    ? 'block':'none';
+      $('vFila').style.display    = v==='fila'    ? 'block':'none';
+      $('vEspeciais').style.display = v==='especiais' ? 'block':'none';
+      $('vAulas').style.display   = v==='aulas'   ? 'block':'none';
       $('vPremios').style.display = v==='premios' ? 'block':'none';
+      if(v==='pessoas') renderPessoas();
     };
   });
 
-  /* ---------- modal de missão ---------- */
-  function openMission(id){
-    let mission=null;
-    for(const t of state.tracks){ const m=t.missions.find(x=>x.id===id); if(m){ mission=m; break; } }
-    if(!mission) return;
-    current = mission; fileData = null;
-    $('mTitle').textContent = mission.title;
-    $('mDesc').textContent  = mission.desc;
-
-    let html = '';
-    if(mission.type === 'quiz'){
-      html = mission.questions.map((q,i)=>
-        '<div class="q"><div class="qt">'+(i+1)+'. '+esc(q.q)+'</div>'+
-        q.options.map((o,j)=>'<label class="opt"><input type="radio" name="q'+i+'" value="'+j+'"><span>'+esc(o)+'</span></label>').join('')+
-        '</div>').join('');
-    } else if(mission.type === 'proof'){
-      html = '<div class="hint">'+esc(mission.proofHint||'Envie um comprovante.')+'</div>'+
-        '<div class="drop" id="drop"><div class="dt">Toque para escolher a foto ou o PDF</div>'+
-        '<div class="dd">A imagem é reduzida antes do envio. Máx. 1 arquivo.</div>'+
-        '<div id="prev"></div></div>'+
-        '<input type="file" id="file" accept="image/*,application/pdf" style="display:none">';
-    } else {
-      html = (mission.fields||[]).map(f=>{
-        let input;
-        if(f.type==='textarea') input = '<textarea id="f_'+f.id+'"></textarea>';
-        else if(f.type==='select') input = '<select id="f_'+f.id+'"><option value="">Selecione…</option>'+
-          f.options.map(o=>'<option>'+esc(o)+'</option>').join('')+'</select>';
-        else input = '<input type="'+(f.type==='number'?'number':'text')+'" id="f_'+f.id+'">';
-        return '<div class="row"><label for="f_'+f.id+'">'+esc(f.label)+'</label>'+input+'</div>';
-      }).join('');
-    }
-    $('mBody').innerHTML = html;
-    $('mSend').textContent = mission.type==='proof' ? 'Enviar comprovante' : 'Enviar';
-    $('mSend').disabled = false;
-    $('veil').classList.add('on');
-
-    if(mission.type === 'proof'){
-      $('drop').onclick = ()=> $('file').click();
-      $('file').onchange = e => handleFile(e.target.files[0]);
-    }
-  }
-  $('mCancel').onclick = ()=> $('veil').classList.remove('on');
-  $('veil').onclick = e => { if(e.target===$('veil')) $('veil').classList.remove('on'); };
-
-  // Comprime a imagem no navegador para não estourar o banco.
-  function handleFile(file){
-    if(!file) return;
-    fileName = file.name || 'comprovante';
-    if(file.type === 'application/pdf'){
-      if(file.size > 900000){ toast('PDF muito grande. Tente uma foto.'); return; }
-      const r = new FileReader();
-      r.onload = () => { fileData = r.result; $('prev').innerHTML = '<div class="dd" style="margin-top:10px"><b>'+esc(file.name)+'</b> pronto para enviar</div>'; };
-      r.readAsDataURL(file);
-      return;
-    }
-    const r = new FileReader();
-    r.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        const max = 1100;
-        let { width:w, height:h } = img;
-        if(w > max || h > max){ const k = max/Math.max(w,h); w = Math.round(w*k); h = Math.round(h*k); }
-        const c = document.createElement('canvas'); c.width=w; c.height=h;
-        c.getContext('2d').drawImage(img,0,0,w,h);
-        fileData = c.toDataURL('image/jpeg', 0.72);
-        $('prev').innerHTML = '<img src="'+fileData+'" alt="Prévia do comprovante">';
-      };
-      img.src = r.result;
-    };
-    r.readAsDataURL(file);
-  }
-
-  $('mSend').onclick = async ()=>{
-    if(!current) return;
-    const m = current;
-    let data = {}, file = null;
-
-    if(m.type === 'quiz'){
-      const answers = m.questions.map((q,i)=>{
-        const c = document.querySelector('input[name="q'+i+'"]:checked');
-        return c ? parseInt(c.value,10) : -1;
-      });
-      if(answers.some(a=>a<0)){ toast('Responda todas as perguntas.'); return; }
-      data = { answers };
-    } else if(m.type === 'proof'){
-      if(!fileData){ toast('Escolha o arquivo do comprovante.'); return; }
-      file = fileData;
-    } else {
-      for(const f of (m.fields||[])){
-        const el = $('f_'+f.id);
-        data[f.id] = el ? el.value : '';
-      }
-    }
-
-    $('mSend').disabled = true; $('mSend').textContent = 'Enviando…';
-    try{
-      const j = await api('/api/missions', { method:'POST', body: JSON.stringify({
-        missionId: m.id, data, file, fileName }) });
-
-      if(j.ok === false){ toast(j.message || 'Revise o preenchimento.'); return; }
-
-      $('veil').classList.remove('on');
-      if(j.pending){ toast(j.message); }
-      else {
-        let msg = '+' + j.earned + ' pontos!';
-        if(j.bonus) msg += ' (inclui bônus de sequência)';
-        toast(msg);
-        if(j.levelUp) setTimeout(()=> toast('🎉 Você subiu para o Nível ' + j.levelUp.level + ' — ' + j.levelUp.name + '!'), 1200);
-      }
-      state = await api('/api/missions');
-      renderHero(); renderMissions(); renderFeitas(); renderPrizes();
-    }catch(err){ toast(err.message); }
-    finally{ $('mSend').disabled=false; $('mSend').textContent = m.type==='proof'?'Enviar comprovante':'Enviar'; }
-  };
-
-  /* ---------- chat ---------- */
-  function addBub(html, kind){
-    const d = document.createElement('div');
-    d.className = 'b ' + (kind||'bot');
-    d.innerHTML = (kind==='user') ? '<div class="bub"></div>' : '<div class="av"></div><div class="bub"></div>';
-    d.querySelector('.bub').innerHTML = html;
-    $('thread').appendChild(d);
-    $('thread').scrollTop = $('thread').scrollHeight;
-    return d;
-  }
-  function initChat(){
-    $('thread').innerHTML = '';
-    addBub(md(GREET));
-    chatHist = [{ role:'assistant', content: GREET_H }];
-    $('chips').innerHTML = OPTS.map((o,i)=>'<button class="chip" type="button">'+(i+1)+' — '+esc(o)+'</button>').join('');
-    $('chips').querySelectorAll('.chip').forEach((b,i)=> b.onclick = ()=> sendChat(OPTS[i]));
-  }
-  async function sendChat(text){
-    if(busy) return;
-    text = (text||'').trim(); if(!text) return;
-    $('chips').innerHTML = '';
-    const u = document.createElement('div'); u.className='b user';
-    u.innerHTML = '<div class="bub"></div>'; u.querySelector('.bub').textContent = text;
-    $('thread').appendChild(u);
-    chatHist.push({ role:'user', content:text });
-    $('cIn').value=''; grow(); busy=true; $('cSend').disabled=true;
-    const t = addBub('<div class="typing"><i></i><i></i><i></i></div>');
-    try{
-      const j = await api('/api/chat', { method:'POST', body: JSON.stringify({ messages: chatHist }) });
-      t.querySelector('.bub').innerHTML = md(j.reply || '—');
-      chatHist.push({ role:'assistant', content: j.reply || '' });
-    }catch(err){
-      t.className = 'b err';
-      t.querySelector('.bub').innerHTML = '<strong>Não foi possível responder.</strong><br>' + esc(err.message);
-    }finally{
-      busy=false; $('cSend').disabled = $('cIn').value.trim()==='';
-      $('thread').scrollTop = $('thread').scrollHeight;
-    }
-  }
-  function grow(){ const i=$('cIn'); i.style.height='auto'; i.style.height=Math.min(i.scrollHeight,130)+'px'; }
-  $('cIn').addEventListener('input', ()=>{ grow(); $('cSend').disabled = busy || $('cIn').value.trim()===''; });
-  $('cIn').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendChat($('cIn').value); } });
-  $('cSend').onclick = ()=> sendChat($('cIn').value);
-
-  /* ---------- sessão salva ---------- */
-  (async ()=>{
-    let saved = null;
-    try{ saved = sessionStorage.getItem('bs_token'); }catch(e){}
-    if(saved){ token = saved; try{ await boot(); }catch(e){ logout(); } }
-  })();
+  $('pw').focus();
 })();
 </script>
 </body>
