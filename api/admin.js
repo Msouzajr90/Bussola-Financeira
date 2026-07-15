@@ -19,8 +19,10 @@ import {
   listSubmissions, getSubmission, saveSubmission, getFile,
   getPrizes, setPrizes, dbReady,
   listCustomMissions, saveCustomMission, deleteCustomMission,
+  listLessons, saveLesson, deleteLesson,
 } from '../lib/store.js';
 import { levelFor, findMission, LEVELS, TRACKS } from '../lib/missions.js';
+import { youtubeId } from './lessons.js';
 
 function authorized(req) {
   const pass = process.env.ADMIN_PASSWORD;
@@ -239,6 +241,17 @@ export default async function handler(req, res) {
         return res.status(200).json({ prizes: await getPrizes() });
       }
 
+      /* ---------- Aulas (área educacional) ---------- */
+      if (action === 'lessons') {
+        const [lessons, users] = await Promise.all([listLessons(), listUsers()]);
+        const enriched = lessons.map(l => ({
+          ...l,
+          assistiram: users.filter(u => (u.lessonsDone || {})[l.id]).length,
+          total: users.length,
+        }));
+        return res.status(200).json({ lessons: enriched });
+      }
+
       /* ---------- Missões especiais criadas pelo gestor ---------- */
       if (action === 'custom') {
         const [missions, users, subs] = await Promise.all([
@@ -348,6 +361,48 @@ export default async function handler(req, res) {
       if (action === 'customDelete') {
         if (!body.id) return res.status(400).json({ error: 'Missão não informada.' });
         await deleteCustomMission(String(body.id));
+        return res.status(200).json({ ok: true });
+      }
+
+      /* ---------- Criar / editar aula ---------- */
+      if (action === 'lesson') {
+        const titulo = String(body.titulo || '').trim();
+        if (!titulo) return res.status(400).json({ error: 'Dê um título à aula.' });
+
+        const videoId = youtubeId(body.video);
+        if (!videoId) return res.status(400).json({ error: 'Link do YouTube inválido. Cole o endereço completo do vídeo.' });
+
+        // Monta o quiz (o gestor marca a alternativa correta)
+        const quiz = (Array.isArray(body.quiz) ? body.quiz : [])
+          .filter(q => q && String(q.q || '').trim() && Array.isArray(q.options) && q.options.length >= 2)
+          .map(q => ({
+            q: String(q.q).slice(0, 300),
+            options: q.options.map(o => String(o).slice(0, 200)).slice(0, 4),
+            answer: Math.max(0, Math.min((q.options.length - 1), parseInt(q.answer, 10) || 0)),
+          }))
+          .slice(0, 5);
+
+        const lesson = {
+          id: body.id || ('les_' + crypto.randomUUID().slice(0, 8)),
+          titulo,
+          descricao: String(body.descricao || '').slice(0, 600),
+          video: String(body.video || '').trim(),
+          videoId,
+          trilha: String(body.trilha || '').slice(0, 60),
+          pontos: Math.max(0, Math.min(500, parseInt(body.pontos, 10) || 0)),
+          ordem: parseInt(body.ordem, 10) || 0,
+          liberaMissao: String(body.liberaMissao || ''),   // pré-requisito opcional
+          quiz,
+          ativo: body.ativo !== false,
+          createdAt: body.createdAt || Date.now(),
+        };
+        await saveLesson(lesson);
+        return res.status(200).json({ ok: true, lesson });
+      }
+
+      if (action === 'lessonDelete') {
+        if (!body.id) return res.status(400).json({ error: 'Aula não informada.' });
+        await deleteLesson(String(body.id));
         return res.status(200).json({ ok: true });
       }
 

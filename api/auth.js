@@ -56,6 +56,7 @@ export function publicUser(u) {
     nome: u.nome,
     points: u.points || 0,
     done: u.done || {},
+    lessonsDone: u.lessonsDone || {},
     streak: u.streak || 0,
     level: levelFor(u.points || 0),
   };
