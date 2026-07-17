@@ -115,9 +115,11 @@ async function personIncome(matricula) {
   return 0;
 }
 
-async function objectiveFeedback(data, math, income, pctRenda) {
+// Uma única chamada ao GPT: valida a coerência E gera o feedback de uma vez.
+// Retorna { valid, feedback }. Em caso de falha, não penaliza (valid=true).
+async function evaluateObjective(data, math, income, pctRenda) {
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return '';
+  if (!apiKey) return { valid: true, feedback: '' };
 
   const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR');
   const contas = [
@@ -135,24 +137,23 @@ async function objectiveFeedback(data, math, income, pctRenda) {
     math.requeridoPorMes != null
       ? `- Para fechar exatamente no prazo, precisaria guardar ${brl(math.requeridoPorMes)} por mês.`
       : `- Prazo não informado corretamente.`,
-    math.mesesNoRitmo != null
-      ? `- No ritmo atual, alcançaria em cerca de ${math.mesesNoRitmo} meses.`
-      : ``,
+    math.mesesNoRitmo != null ? `- No ritmo atual, alcançaria em cerca de ${math.mesesNoRitmo} meses.` : ``,
     income > 0 ? `- Renda mensal informada pela pessoa: ${brl(income)}.` : `- Renda da pessoa: não informada.`,
     (income > 0 && pctRenda != null) ? `- O valor mensal representa cerca de ${pctRenda}% da renda dela.` : ``,
   ].filter(Boolean).join('\n');
 
-  const instrucao = `Você é um orientador de finanças pessoais acolhedor, falando com um trabalhador brasileiro sobre um objetivo que ele acabou de cadastrar.
+  const instrucao = `Você avalia um objetivo financeiro que um trabalhador brasileiro acabou de cadastrar.
 
-Escreva um feedback curto (3 a 5 frases), em segunda pessoa ("você"), linguagem simples e calorosa.
+Primeiro decida se o preenchimento é SÉRIO (valid=true) ou se são valores claramente aleatórios/de teste, como "111", "999", "aaa" (valid=false). Não julgue a situação financeira; objetivo ambicioso ou caro é válido.
 
-Regras:
-- Seja honesto sobre a viabilidade, mas NUNCA desanime a pessoa por sonhar. Objetivo ambicioso é bom.
-- Se o plano fecha, comemore e reforce o hábito. Se não fecha, aponte isso com gentileza e ofereça 2 caminhos concretos: esticar o prazo, aumentar o valor mensal ou ajustar a meta (diga números quando ajudar).
+Se for sério, escreva um feedback curto (3 a 5 frases, no máximo 90 palavras), em segunda pessoa ("você"), linguagem simples e calorosa:
+- Seja honesto sobre a viabilidade, mas NUNCA desanime a pessoa por sonhar.
+- Se o plano fecha, comemore e reforce o hábito. Se não fecha, aponte com gentileza e ofereça 2 caminhos concretos: esticar o prazo, aumentar o valor mensal ou ajustar a meta (use números quando ajudar).
 - Se o valor mensal for uma fatia grande da renda, comente com cuidado que precisa caber no orçamento.
-- Não recomende produtos de investimento específicos. Não peça dados sensíveis (senha, cartão, CPF).
-- Incorpore os números na conversa de forma natural; não devolva uma lista de números crus.
-- No máximo 90 palavras.
+- Não recomende produtos de investimento específicos. Não peça dados sensíveis.
+- Incorpore os números de forma natural, sem listar números crus.
+
+Responda SOMENTE com JSON, sem markdown: {"valid": true|false, "feedback": "seu texto (ou, se valid=false, uma frase curta pedindo para completar de verdade)"}
 
 Dados do objetivo e cálculos:
 ${contas}`;
@@ -163,15 +164,17 @@ ${contas}`;
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: MODEL,
-        temperature: 0.6,
+        temperature: 0.5,
         messages: [{ role: 'user', content: instrucao }],
       }),
     });
-    if (!r.ok) return '';
+    if (!r.ok) return { valid: true, feedback: '' };
     const j = await r.json();
-    return (j?.choices?.[0]?.message?.content || '').trim();
+    const txt = (j?.choices?.[0]?.message?.content || '').replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(txt);
+    return { valid: parsed.valid !== false, feedback: parsed.feedback || '' };
   } catch {
-    return '';
+    return { valid: true, feedback: '' };
   }
 }
 
@@ -277,22 +280,21 @@ export default async function handler(req, res) {
     /* --- FORM: o GPT confere a coerência --- */
     let objetivoAvaliacao = null;
     if (mission.type === 'form') {
-      const check = await validateForm(mission, data);
-      if (!check.valid) {
-        return res.status(200).json({ ok: false, message: check.feedback || 'Faltou completar alguns campos.' });
-      }
-      sub.status = 'aprovado';
-      sub.points = mission.points;
-
-      // Objetivos ganham uma avaliação de viabilidade + feedback da IA.
       if (mission.id === 'obj_criar') {
+        // Objetivo: uma única chamada faz a checagem E o feedback (mais rápido e seguro).
         const math = computeObjectiveMath(data);
         const income = await personIncome(user.matricula);
         const { status, pctRenda } = objectiveStatus(math, income);
-        const feedback = await objectiveFeedback(data, math, income, pctRenda);
+        const evalr = await evaluateObjective(data, math, income, pctRenda);
+
+        if (!evalr.valid) {
+          return res.status(200).json({ ok: false, message: evalr.feedback || 'Complete os campos do objetivo com valores reais.' });
+        }
+        sub.status = 'aprovado';
+        sub.points = mission.points;
         objetivoAvaliacao = {
           status,
-          feedback,
+          feedback: evalr.feedback,
           objetivo: data.objetivo || '',
           resumo: {
             custo: math.custo, jaTem: math.jaTem, prazoMeses: math.prazoMeses,
@@ -301,10 +303,16 @@ export default async function handler(req, res) {
             pctRenda,
           },
         };
-        // Guarda um resumo no envio, para o gestor ver depois.
         sub.note = math.viavel
           ? 'Objetivo viável no ritmo informado.'
           : `Objetivo precisa de ajuste: faltariam R$ ${math.falta} no prazo.`;
+      } else {
+        const check = await validateForm(mission, data);
+        if (!check.valid) {
+          return res.status(200).json({ ok: false, message: check.feedback || 'Faltou completar alguns campos.' });
+        }
+        sub.status = 'aprovado';
+        sub.points = mission.points;
       }
     }
 
