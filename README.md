@@ -89,6 +89,25 @@ Cada aula tem um campo opcional de **pré-requisito** (liberar uma missão só d
 pronto para quando você quiser usar.
 
 
+## Avaliação de objetivos pela IA
+
+Quando o colaborador cria um objetivo (missão "Crie um objetivo com prazo"), a plataforma
+avalia a viabilidade e devolve um feedback na hora:
+
+- A **conta** (o plano fecha no prazo? quanto seria preciso guardar por mês?) é feita no
+  código, com precisão — modelos de IA não são confiáveis em aritmética.
+- O **GPT** recebe esses números prontos (mais a renda que a pessoa já informou no orçamento)
+  e escreve um feedback curto, honesto e encorajador, sugerindo ajustes quando o plano não
+  fecha (esticar prazo, mudar valor mensal ou meta).
+- O resultado aparece numa tela com três situações: **viável** (verde), **apertado** (amarelo,
+  quando compromete muito da renda) e **ajustar** (laranja, quando não fecha no prazo).
+- Usa a mesma API do Orientador (`OPENAI_API_KEY`). Custo: uma chamada por objetivo criado.
+
+O objetivo pontua mesmo quando é ambicioso — premiar o hábito de planejar é o ponto; o
+feedback ajuda a pessoa a torná-lo realista.
+
+---
+
 ## Segurança de acesso e backup
 
 - **Bloqueio por tentativas:** após 5 PINs errados, o acesso daquela matrícula fica bloqueado

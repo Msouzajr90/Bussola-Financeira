@@ -149,6 +149,32 @@
   .confetti i{ position:absolute; top:-12px; width:9px; height:14px; opacity:.9; animation:fall linear forwards; }
   @keyframes fall{ to{ transform:translateY(105vh) rotate(720deg); opacity:.4; } }
 
+  /* Avaliação do objetivo */
+  .objfb{ position:fixed; inset:0; background:rgba(0,40,70,.7); display:none; align-items:center;
+    justify-content:center; padding:20px; z-index:80; }
+  .objfb.on{ display:flex; }
+  .ofb-card{ background:var(--surface); border-radius:20px; width:100%; max-width:440px; overflow:hidden;
+    box-shadow:0 24px 60px rgba(0,32,54,.45); animation:pop .4s cubic-bezier(.2,1.3,.4,1); max-height:90vh; display:flex; flex-direction:column; }
+  .ofb-head{ display:flex; align-items:center; gap:14px; padding:22px 22px 20px; color:#fff; }
+  .ofb-head.viavel{ background:linear-gradient(120deg,#1D9E75,#12836A); }
+  .ofb-head.apertado{ background:linear-gradient(120deg,#D79A2B,#BA7517); }
+  .ofb-head.ajustar{ background:linear-gradient(120deg,#E07A3E,#C85C2A); }
+  .ofb-ic{ font-size:34px; flex:0 0 auto; }
+  .ofb-status{ font-family:'Archivo',sans-serif; font-weight:800; font-size:20px; letter-spacing:-.01em; }
+  .ofb-earn{ font-size:13.5px; opacity:.92; margin-top:2px; font-weight:600; }
+  .ofb-body{ padding:20px 22px; overflow-y:auto; }
+  .ofb-text{ font-size:15px; line-height:1.6; color:var(--ink); }
+  .ofb-num{ margin-top:14px; background:var(--paper); border:1px solid var(--line); border-radius:11px;
+    padding:12px 14px; font-size:13px; color:var(--muted); line-height:1.6; }
+  .ofb-num b{ color:var(--blue-deep); }
+  .ofb-foot{ display:flex; gap:9px; padding:0 22px 22px; }
+  .ofb-chat{ flex:1; font-weight:600; font-size:13.5px; color:var(--blue-deep); background:var(--surface);
+    border:1px solid var(--line); border-radius:11px; padding:12px; cursor:pointer; }
+  .ofb-chat:hover{ border-color:var(--cyan); color:var(--blue); }
+  .ofb-ok{ flex:0 0 auto; font-weight:600; font-size:14px; color:#fff; background:var(--orb); border:none;
+    border-radius:11px; padding:12px 22px; cursor:pointer; box-shadow:0 3px 10px rgba(0,120,192,.3); }
+  .ofb-ok:hover{ filter:brightness(1.05); }
+
   .nav{ display:flex; gap:8px; margin-bottom:16px; }
   .nav button{ flex:1; padding:11px; border:1px solid var(--line); background:var(--surface); border-radius:11px;
     font-size:14px; font-weight:600; color:var(--muted); cursor:pointer; }
@@ -414,7 +440,26 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<!-- Comemoração de subida de nível -->
+<!-- Avaliação do objetivo (feedback da IA) -->
+<div class="objfb" id="objFb">
+  <div class="ofb-card">
+    <div class="ofb-head" id="ofbHead">
+      <span class="ofb-ic" id="ofbIc">🎯</span>
+      <div>
+        <div class="ofb-status" id="ofbStatus">Plano viável!</div>
+        <div class="ofb-earn" id="ofbEarn">+100 pontos</div>
+      </div>
+    </div>
+    <div class="ofb-body">
+      <div class="ofb-text" id="ofbText"></div>
+      <div class="ofb-num" id="ofbNum"></div>
+    </div>
+    <div class="ofb-foot">
+      <button class="ofb-chat" id="ofbChat" type="button">Conversar com o Orientador</button>
+      <button class="ofb-ok" id="ofbOk" type="button">Entendi</button>
+    </div>
+  </div>
+</div>
 <div class="levelup" id="levelup">
   <div class="confetti" id="confetti"></div>
   <div class="lu-card">
@@ -429,7 +474,7 @@
 <script>
 (function(){
   const $ = id => document.getElementById(id);
-  let token = null, state = null, chatHist = [], busy = false, mode = 'login', current = null, fileData = null, fileName = '';
+  let token = null, state = null, chatHist = [], busy = false, mode = 'login', current = null, fileData = null, fileName = '', pendingLevelUp = null;
 
   const OPTS = ['Tenho uma dúvida sobre dinheiro','Quero organizar minhas finanças','Estou com dívidas',
                 'Quero começar a guardar dinheiro','Quero fazer um planejamento','Quero comparar duas opções'];
@@ -681,6 +726,51 @@
   }
   $('luBtn').onclick = ()=> $('levelup').classList.remove('on');
 
+  /* ---- Avaliação do objetivo (feedback da IA) ---- */
+  function showObjectiveFeedback(obj, earned, levelUp){
+    const map = {
+      viavel:  { ic:'🎯', t:'Plano viável!' },
+      apertado:{ ic:'⚖️', t:'Dá — mas é apertado' },
+      ajustar: { ic:'🧭', t:'Vamos ajustar o plano' },
+    };
+    const meta = map[obj.status] || map.viavel;
+    $('ofbHead').className = 'ofb-head ' + (obj.status || 'viavel');
+    $('ofbIc').textContent = meta.ic;
+    $('ofbStatus').textContent = meta.t;
+    $('ofbEarn').textContent = '+' + earned + ' pontos · ' + (obj.objetivo || 'objetivo criado');
+
+    const r = obj.resumo || {};
+    let txt = (obj.feedback || '').trim();
+    if(!txt){
+      txt = r.viavel
+        ? 'Boa! No ritmo que você planejou, dá para alcançar esse objetivo dentro do prazo. Continue firme e registre seu progresso.'
+        : 'Esse objetivo é ótimo. No ritmo atual ele não fecha no prazo — mas dá para chegar lá esticando o tempo ou aumentando um pouco o valor guardado por mês. Fale com o Orientador para montarmos o plano juntos.';
+    }
+    $('ofbText').textContent = txt;
+
+    const brl = n => 'R$ ' + Number(n||0).toLocaleString('pt-BR');
+    let num = '';
+    if(r.viavel){
+      num = 'No seu ritmo (' + brl(r.porMes) + '/mês), você alcança em cerca de <b>' + (r.mesesNoRitmo || r.prazoMeses) + ' meses</b>.';
+    } else if(r.requeridoPorMes != null){
+      num = 'Para fechar em ' + r.prazoMeses + ' meses, seria preciso guardar <b>' + brl(r.requeridoPorMes) + '/mês</b>' +
+            (r.mesesNoRitmo ? '. No ritmo atual, chegaria em cerca de <b>' + r.mesesNoRitmo + ' meses</b>.' : '.');
+    }
+    $('ofbNum').innerHTML = num;
+    $('ofbNum').style.display = num ? 'block' : 'none';
+
+    pendingLevelUp = levelUp || null;
+    $('objFb').classList.add('on');
+  }
+  $('ofbOk').onclick = ()=>{
+    $('objFb').classList.remove('on');
+    if(pendingLevelUp){ const lu = pendingLevelUp; pendingLevelUp = null; setTimeout(()=> celebrate(lu), 400); }
+  };
+  $('ofbChat').onclick = ()=>{
+    $('objFb').classList.remove('on'); pendingLevelUp = null;
+    const tab = document.querySelector('.nav [data-view=chat]'); if(tab) tab.click();
+  };
+
   function subStatus(missionId){
     const s = (state.submissions||[]).filter(x=>x.missionId===missionId);
     if(s.some(x=>x.status==='pendente')) return 'pendente';
@@ -891,6 +981,10 @@
 
       $('veil').classList.remove('on');
       if(j.pending){ toast(j.message); }
+      else if(j.objetivo){
+        // Objetivo criado: mostra a avaliação da IA (e comemora depois, se subiu de nível)
+        showObjectiveFeedback(j.objetivo, j.earned, j.levelUp || null);
+      }
       else {
         let msg = '+' + j.earned + ' pontos!';
         if(j.bonus) msg += ' (inclui bônus de sequência)';

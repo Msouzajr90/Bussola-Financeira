@@ -62,6 +62,119 @@ Responda SOMENTE com JSON, sem markdown:
   }
 }
 
+// ============================================================================
+//  Avaliação de OBJETIVOS (missão "Crie um objetivo com prazo").
+//  A CONTA é feita aqui, no código (LLM não faz aritmética confiável).
+//  O GPT recebe os números prontos e só escreve o feedback humano.
+// ============================================================================
+function num(v) {
+  const n = parseFloat(String(v == null ? '' : v).replace(/\./g, '').replace(',', '.'));
+  return isFinite(n) ? n : 0;
+}
+
+function computeObjectiveMath(data) {
+  const custo = num(data.custo);
+  const jaTem = num(data.ja_tem);
+  const prazoMeses = Math.round(num(data.prazo_meses));
+  const porMes = num(data.por_mes);
+
+  const totalPoupado = jaTem + porMes * Math.max(prazoMeses, 0);
+  const falta = Math.round(custo - totalPoupado);
+  const viavel = falta <= 0;
+  const restante = Math.max(0, custo - jaTem);
+  const requeridoPorMes = prazoMeses > 0 ? Math.max(0, Math.round(restante / prazoMeses)) : null;
+  const mesesNoRitmo = porMes > 0 ? Math.ceil(restante / porMes) : null;
+
+  return {
+    custo, jaTem, prazoMeses, porMes,
+    totalPoupado: Math.round(totalPoupado),
+    falta, viavel, requeridoPorMes, mesesNoRitmo,
+  };
+}
+
+function objectiveStatus(math, income) {
+  const mensal = math.viavel ? math.porMes : math.requeridoPorMes;
+  const pctRenda = (income > 0 && mensal) ? Math.round((mensal / income) * 100) : null;
+  let status;
+  if (!math.viavel) status = 'ajustar';
+  else if (pctRenda != null && pctRenda > 40) status = 'apertado';
+  else status = 'viavel';
+  return { status, pctRenda };
+}
+
+// Busca a renda que a pessoa já informou (orçamento ou diagnóstico).
+async function personIncome(matricula) {
+  try {
+    const subs = await listSubmissions({ matricula, limit: 150 });
+    const fontes = ['orc_montar', 'diag_inicial'];
+    for (const id of fontes) {
+      const s = subs.find(x => x.missionId === id && x.data && x.data.renda);
+      if (s) { const r = num(s.data.renda); if (r > 0) return r; }
+    }
+  } catch { /* ignora */ }
+  return 0;
+}
+
+async function objectiveFeedback(data, math, income, pctRenda) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return '';
+
+  const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR');
+  const contas = [
+    `Objetivo: ${data.objetivo || '(não informado)'}`,
+    `Custo estimado: ${brl(math.custo)}`,
+    `Já guardado: ${brl(math.jaTem)}`,
+    `Prazo desejado: ${math.prazoMeses} meses`,
+    `Pretende guardar por mês: ${brl(math.porMes)}`,
+    ``,
+    `CÁLCULOS JÁ FEITOS (use estes números, não recalcule):`,
+    `- No ritmo informado, junta ${brl(math.totalPoupado)} ao fim do prazo.`,
+    math.viavel
+      ? `- Isso ALCANÇA o objetivo (sobra ${brl(-math.falta)}).`
+      : `- Isso NÃO alcança: faltariam ${brl(math.falta)}.`,
+    math.requeridoPorMes != null
+      ? `- Para fechar exatamente no prazo, precisaria guardar ${brl(math.requeridoPorMes)} por mês.`
+      : `- Prazo não informado corretamente.`,
+    math.mesesNoRitmo != null
+      ? `- No ritmo atual, alcançaria em cerca de ${math.mesesNoRitmo} meses.`
+      : ``,
+    income > 0 ? `- Renda mensal informada pela pessoa: ${brl(income)}.` : `- Renda da pessoa: não informada.`,
+    (income > 0 && pctRenda != null) ? `- O valor mensal representa cerca de ${pctRenda}% da renda dela.` : ``,
+  ].filter(Boolean).join('\n');
+
+  const instrucao = `Você é um orientador de finanças pessoais acolhedor, falando com um trabalhador brasileiro sobre um objetivo que ele acabou de cadastrar.
+
+Escreva um feedback curto (3 a 5 frases), em segunda pessoa ("você"), linguagem simples e calorosa.
+
+Regras:
+- Seja honesto sobre a viabilidade, mas NUNCA desanime a pessoa por sonhar. Objetivo ambicioso é bom.
+- Se o plano fecha, comemore e reforce o hábito. Se não fecha, aponte isso com gentileza e ofereça 2 caminhos concretos: esticar o prazo, aumentar o valor mensal ou ajustar a meta (diga números quando ajudar).
+- Se o valor mensal for uma fatia grande da renda, comente com cuidado que precisa caber no orçamento.
+- Não recomende produtos de investimento específicos. Não peça dados sensíveis (senha, cartão, CPF).
+- Incorpore os números na conversa de forma natural; não devolva uma lista de números crus.
+- No máximo 90 palavras.
+
+Dados do objetivo e cálculos:
+${contas}`;
+
+  try {
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: MODEL,
+        temperature: 0.6,
+        messages: [{ role: 'user', content: instrucao }],
+      }),
+    });
+    if (!r.ok) return '';
+    const j = await r.json();
+    return (j?.choices?.[0]?.message?.content || '').trim();
+  } catch {
+    return '';
+  }
+}
+
 export default async function handler(req, res) {
   if (!dbReady) return res.status(500).json({ error: 'Banco de dados não configurado.' });
 
@@ -162,6 +275,7 @@ export default async function handler(req, res) {
     }
 
     /* --- FORM: o GPT confere a coerência --- */
+    let objetivoAvaliacao = null;
     if (mission.type === 'form') {
       const check = await validateForm(mission, data);
       if (!check.valid) {
@@ -169,6 +283,29 @@ export default async function handler(req, res) {
       }
       sub.status = 'aprovado';
       sub.points = mission.points;
+
+      // Objetivos ganham uma avaliação de viabilidade + feedback da IA.
+      if (mission.id === 'obj_criar') {
+        const math = computeObjectiveMath(data);
+        const income = await personIncome(user.matricula);
+        const { status, pctRenda } = objectiveStatus(math, income);
+        const feedback = await objectiveFeedback(data, math, income, pctRenda);
+        objetivoAvaliacao = {
+          status,
+          feedback,
+          objetivo: data.objetivo || '',
+          resumo: {
+            custo: math.custo, jaTem: math.jaTem, prazoMeses: math.prazoMeses,
+            porMes: math.porMes, viavel: math.viavel, falta: math.falta,
+            requeridoPorMes: math.requeridoPorMes, mesesNoRitmo: math.mesesNoRitmo,
+            pctRenda,
+          },
+        };
+        // Guarda um resumo no envio, para o gestor ver depois.
+        sub.note = math.viavel
+          ? 'Objetivo viável no ritmo informado.'
+          : `Objetivo precisa de ajuste: faltariam R$ ${math.falta} no prazo.`;
+      }
     }
 
     /* --- CHECK-IN: uma vez por semana, com bônus de sequência --- */
@@ -229,6 +366,7 @@ export default async function handler(req, res) {
       earned: ganho,
       bonus,
       levelUp: depois > antes ? levelFor(user.points) : null,
+      objetivo: objetivoAvaliacao,
       user: publicUser(user),
     });
   } catch (err) {
