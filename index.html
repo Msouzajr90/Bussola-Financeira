@@ -159,10 +159,19 @@
   .ofb-head.viavel{ background:linear-gradient(120deg,#1D9E75,#12836A); }
   .ofb-head.apertado{ background:linear-gradient(120deg,#D79A2B,#BA7517); }
   .ofb-head.ajustar{ background:linear-gradient(120deg,#E07A3E,#C85C2A); }
+  .ofb-head.orcamento{ background:linear-gradient(120deg,#D2683E,#B24A2A); }
+  .ofb-head.sobreposto{ background:linear-gradient(120deg,#5A6BB0,#3F4E92); }
   .ofb-ic{ font-size:34px; flex:0 0 auto; }
   .ofb-status{ font-family:'Archivo',sans-serif; font-weight:800; font-size:20px; letter-spacing:-.01em; }
   .ofb-earn{ font-size:13.5px; opacity:.92; margin-top:2px; font-weight:600; }
   .ofb-body{ padding:20px 22px; overflow-y:auto; }
+  .ofb-class{ display:none; align-items:center; gap:8px; font-size:13px; color:var(--ink);
+    padding:8px 12px; border-radius:10px; margin-bottom:14px; font-weight:500; }
+  .ofb-class .dot{ width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
+  .ofb-class b{ font-weight:700; }
+  .ofb-class.bem{ background:#E1F5EE; color:#0F6E56; } .ofb-class.bem .dot{ background:#1D9E75; }
+  .ofb-class.parcial{ background:#FAEEDA; color:#854F0B; } .ofb-class.parcial .dot{ background:#BA7517; }
+  .ofb-class.insuf{ background:#FCEBEB; color:#A32D2D; } .ofb-class.insuf .dot{ background:#A32D2D; }
   .ofb-text{ font-size:15px; line-height:1.6; color:var(--ink); }
   .ofb-num{ margin-top:14px; background:var(--paper); border:1px solid var(--line); border-radius:11px;
     padding:12px 14px; font-size:13px; color:var(--muted); line-height:1.6; }
@@ -171,6 +180,9 @@
   .ofb-chat{ flex:1; font-weight:600; font-size:13.5px; color:var(--blue-deep); background:var(--surface);
     border:1px solid var(--line); border-radius:11px; padding:12px; cursor:pointer; }
   .ofb-chat:hover{ border-color:var(--cyan); color:var(--blue); }
+  .ofb-adjust{ flex:1; font-weight:600; font-size:13.5px; color:#fff; background:var(--blue-dark);
+    border:none; border-radius:11px; padding:12px; cursor:pointer; }
+  .ofb-adjust:hover{ background:var(--blue-deep); }
   .ofb-ok{ flex:0 0 auto; font-weight:600; font-size:14px; color:#fff; background:var(--orb); border:none;
     border-radius:11px; padding:12px 22px; cursor:pointer; box-shadow:0 3px 10px rgba(0,120,192,.3); }
   .ofb-ok:hover{ filter:brightness(1.05); }
@@ -451,11 +463,13 @@
       </div>
     </div>
     <div class="ofb-body">
+      <div class="ofb-class" id="ofbClass"></div>
       <div class="ofb-text" id="ofbText"></div>
       <div class="ofb-num" id="ofbNum"></div>
     </div>
     <div class="ofb-foot">
       <button class="ofb-chat" id="ofbChat" type="button">Conversar com o Orientador</button>
+      <button class="ofb-adjust" id="ofbAdjust" type="button" style="display:none">Ajustar objetivo</button>
       <button class="ofb-ok" id="ofbOk" type="button">Entendi</button>
     </div>
   </div>
@@ -474,7 +488,7 @@
 <script>
 (function(){
   const $ = id => document.getElementById(id);
-  let token = null, state = null, chatHist = [], busy = false, mode = 'login', current = null, fileData = null, fileName = '', pendingLevelUp = null;
+  let token = null, state = null, chatHist = [], busy = false, mode = 'login', current = null, fileData = null, fileName = '', pendingLevelUp = null, lastObjData = null;
 
   const OPTS = ['Tenho uma dúvida sobre dinheiro','Quero organizar minhas finanças','Estou com dívidas',
                 'Quero começar a guardar dinheiro','Quero fazer um planejamento','Quero comparar duas opções'];
@@ -729,28 +743,56 @@
   /* ---- Avaliação do objetivo (feedback da IA) ---- */
   function showObjectiveFeedback(obj, earned, levelUp){
     const map = {
-      viavel:  { ic:'🎯', t:'Plano viável!' },
-      apertado:{ ic:'⚖️', t:'Dá — mas é apertado' },
-      ajustar: { ic:'🧭', t:'Vamos ajustar o plano' },
+      viavel:    { ic:'🎯', t:'Plano viável!' },
+      apertado:  { ic:'⚖️', t:'Dá — mas é apertado' },
+      ajustar:   { ic:'🧭', t:'Vamos ajustar o plano' },
+      orcamento: { ic:'💰', t:'Não cabe no orçamento' },
+      sobreposto:{ ic:'🔁', t:'Você já tem esse objetivo' },
     };
     const meta = map[obj.status] || map.viavel;
+    const pontuou = obj.pontuou !== false;
     $('ofbHead').className = 'ofb-head ' + (obj.status || 'viavel');
     $('ofbIc').textContent = meta.ic;
     $('ofbStatus').textContent = meta.t;
-    $('ofbEarn').textContent = '+' + earned + ' pontos · ' + (obj.objetivo || 'objetivo criado');
+    $('ofbEarn').textContent = pontuou
+      ? ('+' + earned + ' pontos · ' + (obj.objetivo || 'objetivo criado'))
+      : ('Ainda sem pontos — ajuste para concluir');
 
     const r = obj.resumo || {};
+    const brl = n => 'R$ ' + Number(n||0).toLocaleString('pt-BR');
+
+    // Classificação do planejamento (3 níveis)
+    const cls = {
+      bem:         { t:'Missão bem planejada', c:'bem' },
+      parcial:     { t:'Parcialmente suficiente', c:'parcial' },
+      insuficiente:{ t:'Insuficiente', c:'insuf' },
+    };
+    const ci = cls[obj.classificacao];
+    const ce = $('ofbClass');
+    if(ci){
+      ce.className = 'ofb-class ' + ci.c;
+      ce.innerHTML = '<span class="dot"></span>Planejamento: <b>' + ci.t + '</b>';
+      ce.style.display = 'flex';
+    } else { ce.style.display = 'none'; }
+
     let txt = (obj.feedback || '').trim();
     if(!txt){
-      txt = r.viavel
-        ? 'Boa! No ritmo que você planejou, dá para alcançar esse objetivo dentro do prazo. Continue firme e registre seu progresso.'
-        : 'Esse objetivo é ótimo. No ritmo atual ele não fecha no prazo — mas dá para chegar lá esticando o tempo ou aumentando um pouco o valor guardado por mês. Fale com o Orientador para montarmos o plano juntos.';
+      if(obj.status === 'sobreposto') txt = 'Parece que você já tem um objetivo parecido com este. Que tal ajustar o que já existe, em vez de criar um repetido?';
+      else if(obj.status === 'orcamento') txt = 'Somando seus objetivos, o valor a guardar por mês não cabe no que sobra do seu orçamento. Vamos priorizar um objetivo, reduzir valores ou alongar prazos?';
+      else if(!r.viavel) txt = 'Esse objetivo é ótimo. No ritmo atual ele não fecha no prazo — dá para chegar lá esticando o tempo ou aumentando o valor mensal. Fale com o Orientador para montarmos o plano.';
+      else txt = 'Boa! No ritmo que você planejou, dá para alcançar esse objetivo dentro do prazo. Continue firme.';
     }
     $('ofbText').textContent = txt;
 
-    const brl = n => 'R$ ' + Number(n||0).toLocaleString('pt-BR');
+    // Resumo numérico conforme a situação
     let num = '';
-    if(r.viavel){
+    if(obj.status === 'orcamento' && r.orcamentoDisponivel != null){
+      const base = r.baseTipo === 'meta_futura' ? 'sua meta é sobrar'
+                 : r.baseTipo === 'renda' ? 'sua renda é de'
+                 : 'sobram';
+      num = 'Somando seus objetivos: <b>' + brl(r.totalMensal) + '/mês</b>, mas ' + base + ' <b>' + brl(r.orcamentoDisponivel) + '/mês</b>' +
+            (r.baseTipo === 'meta_futura' ? ' na sua meta de orçamento.' : '.');
+    } else if(r.viavel){
       num = 'No seu ritmo (' + brl(r.porMes) + '/mês), você alcança em cerca de <b>' + (r.mesesNoRitmo || r.prazoMeses) + ' meses</b>.';
     } else if(r.requeridoPorMes != null){
       num = 'Para fechar em ' + r.prazoMeses + ' meses, seria preciso guardar <b>' + brl(r.requeridoPorMes) + '/mês</b>' +
@@ -758,6 +800,15 @@
     }
     $('ofbNum').innerHTML = num;
     $('ofbNum').style.display = num ? 'block' : 'none';
+
+    // Botões: se não pontuou, oferece ajustar
+    if(pontuou){
+      $('ofbAdjust').style.display = 'none';
+      $('ofbOk').textContent = 'Entendi';
+    } else {
+      $('ofbAdjust').style.display = 'block';
+      $('ofbOk').textContent = 'Fechar';
+    }
 
     pendingLevelUp = levelUp || null;
     $('objFb').classList.add('on');
@@ -769,6 +820,10 @@
   $('ofbChat').onclick = ()=>{
     $('objFb').classList.remove('on'); pendingLevelUp = null;
     const tab = document.querySelector('.nav [data-view=chat]'); if(tab) tab.click();
+  };
+  $('ofbAdjust').onclick = ()=>{
+    $('objFb').classList.remove('on'); pendingLevelUp = null;
+    openMission('obj_criar'); // reabre já preenchido com o último objetivo
   };
 
   function subStatus(missionId){
@@ -788,6 +843,11 @@
         if(concluida){ icon = '<div class="m-icon done">✓</div>'; right = '<span class="m-tag done">Concluída</span>'; }
         else if(pend){ icon = '<div class="m-icon wait">⏱</div>'; right = '<span class="m-tag wait">Em análise</span>'; }
         else { right = '<button class="m-go" data-m="'+m.id+'">Fazer</button>'; }
+        // Limite de 3 objetivos
+        if(m.id === 'obj_criar' && feito >= 3){
+          icon = '<div class="m-icon done">✓</div>';
+          right = '<span class="m-tag done">Limite atingido (3/3)</span>';
+        }
         const extra = (m.repeatable && feito) ? ' · feita '+feito+'x' : '';
         const esp = m.custom ? ' <span class="m-tag esp">Especial</span>' : '';
         return '<div class="mission">'+icon+
@@ -913,6 +973,11 @@
     $('mSend').disabled = false;
     $('veil').classList.add('on');
 
+    // Ao ajustar um objetivo, reabre com os valores que a pessoa já digitou.
+    if(mission.id === 'obj_criar' && lastObjData){
+      (mission.fields||[]).forEach(f=>{ const el=$('f_'+f.id); if(el && lastObjData[f.id]!=null) el.value = lastObjData[f.id]; });
+    }
+
     if(mission.type === 'proof'){
       $('drop').onclick = ()=> $('file').click();
       $('file').onchange = e => handleFile(e.target.files[0]);
@@ -970,6 +1035,7 @@
         const el = $('f_'+f.id);
         data[f.id] = el ? el.value : '';
       }
+      if(m.id === 'obj_criar') lastObjData = { ...data };
     }
 
     $('mSend').disabled = true; $('mSend').textContent = 'Enviando…';
@@ -982,8 +1048,8 @@
       $('veil').classList.remove('on');
       if(j.pending){ toast(j.message); }
       else if(j.objetivo){
-        // Objetivo criado: mostra a avaliação da IA (e comemora depois, se subiu de nível)
         showObjectiveFeedback(j.objetivo, j.earned, j.levelUp || null);
+        if(j.objetivo.pontuou !== false) lastObjData = null;
       }
       else {
         let msg = '+' + j.earned + ' pontos!';

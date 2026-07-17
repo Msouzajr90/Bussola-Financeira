@@ -92,70 +92,128 @@ function computeObjectiveMath(data) {
   };
 }
 
-function objectiveStatus(math, income) {
-  const mensal = math.viavel ? math.porMes : math.requeridoPorMes;
-  const pctRenda = (income > 0 && mensal) ? Math.round((mensal / income) * 100) : null;
-  let status;
-  if (!math.viavel) status = 'ajustar';
-  else if (pctRenda != null && pctRenda > 40) status = 'apertado';
-  else status = 'viavel';
-  return { status, pctRenda };
+// Orçamento da pessoa (a partir da missão de orçamento): renda, gastos e sobra.
+function deriveBudget(subs) {
+  const s = subs.find(x => x.missionId === 'orc_montar' && x.data);
+  if (!s) return null;
+  const d = s.data;
+  const renda = num(d.renda);
+  const gastos = ['moradia', 'contas', 'alimentacao', 'transporte', 'parcelas', 'outros']
+    .reduce((a, k) => a + num(d[k]), 0);
+  return { renda, gastos: Math.round(gastos), sobra: Math.round(renda - gastos) };
 }
 
-// Busca a renda que a pessoa já informou (orçamento ou diagnóstico).
-async function personIncome(matricula) {
-  try {
-    const subs = await listSubmissions({ matricula, limit: 150 });
-    const fontes = ['orc_montar', 'diag_inicial'];
-    for (const id of fontes) {
-      const s = subs.find(x => x.missionId === id && x.data && x.data.renda);
-      if (s) { const r = num(s.data.renda); if (r > 0) return r; }
-    }
-  } catch { /* ignora */ }
-  return 0;
+// Metas de orçamento futuro (missão orc_metas): renda e gastos que a pessoa quer ter.
+function deriveFutureBudget(subs) {
+  const s = subs.find(x => x.missionId === 'orc_metas' && x.data);
+  if (!s) return null;
+  const d = s.data;
+  const rendaFutura = num(d.renda_futura);
+  const gastosFuturos = num(d.gastos_futuros);
+  if (rendaFutura <= 0 && gastosFuturos <= 0) return null;
+  return {
+    rendaFutura: Math.round(rendaFutura),
+    gastosFuturos: Math.round(gastosFuturos),
+    sobraFutura: Math.round(rendaFutura - gastosFuturos),
+    prazoMeta: Math.round(num(d.prazo_meta)),
+  };
 }
 
-// Uma única chamada ao GPT: valida a coerência E gera o feedback de uma vez.
-// Retorna { valid, feedback }. Em caso de falha, não penaliza (valid=true).
-async function evaluateObjective(data, math, income, pctRenda) {
+// Renda: do orçamento, ou do diagnóstico como fallback.
+function deriveIncome(subs) {
+  const b = deriveBudget(subs);
+  if (b && b.renda > 0) return b.renda;
+  const s = subs.find(x => x.missionId === 'diag_inicial' && x.data && x.data.renda);
+  return s ? num(s.data.renda) : 0;
+}
+
+// Objetivos já aprovados (para somar o mensal e checar sobreposição).
+function activeObjectives(subs) {
+  return subs
+    .filter(x => x.missionId === 'obj_criar' && x.status === 'aprovado' && x.data)
+    .map(x => ({ objetivo: x.data.objetivo || '', porMes: num(x.data.por_mes), custo: num(x.data.custo) }));
+}
+
+// Palavras-chave de um objetivo (sem acentos, sem verbos/artigos genéricos).
+const STOP = new Set(['comprar', 'quero', 'ter', 'juntar', 'guardar', 'pagar', 'quitar',
+  'um', 'uma', 'de', 'da', 'do', 'a', 'o', 'as', 'os', 'para', 'pra', 'por', 'com', 'em',
+  'minha', 'meu', 'minhas', 'meus', 'propria', 'proprio', 'proprios', 'proprias',
+  'novo', 'nova', 'novos', 'novas', 'meu', 'sonho', 'dos', 'das', 'no', 'na']);
+function normalizeGoal(str) {
+  return String(str || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !STOP.has(w));
+}
+// Sobreposição por código (reforça a checagem semântica da IA).
+function codeOverlap(newGoal, existentes) {
+  const a = new Set(normalizeGoal(newGoal));
+  if (!a.size) return false;
+  for (const e of existentes) {
+    const b = new Set(normalizeGoal(e.objetivo));
+    if (!b.size) continue;
+    let inter = 0;
+    for (const w of a) if (b.has(w)) inter++;
+    const uniao = new Set([...a, ...b]).size;
+    if (uniao && inter / uniao >= 0.5) return true;
+  }
+  return false;
+}
+
+// Uma única chamada ao GPT: valida coerência, detecta sobreposição e escreve o feedback.
+// Retorna { valid, overlap, feedback }. Em falha, não penaliza (valid=true, overlap=false).
+async function evaluateObjective(ctx) {
+  const { data, math, income, budget, future, existentes, totalMensal, orcamentoDisponivel, baseTipo, extrapola } = ctx;
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return { valid: true, feedback: '' };
-
   const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR');
+
+  if (!apiKey) return { valid: true, overlap: false, feedback: '' };
+
+  const listaExist = existentes.length
+    ? existentes.map(o => `- "${o.objetivo}" (guardando ${brl(o.porMes)}/mês)`).join('\n')
+    : '(nenhum objetivo cadastrado ainda)';
+
   const contas = [
-    `Objetivo: ${data.objetivo || '(não informado)'}`,
-    `Custo estimado: ${brl(math.custo)}`,
-    `Já guardado: ${brl(math.jaTem)}`,
-    `Prazo desejado: ${math.prazoMeses} meses`,
-    `Pretende guardar por mês: ${brl(math.porMes)}`,
+    `Novo objetivo: ${data.objetivo || '(não informado)'}`,
+    `Custo: ${brl(math.custo)} | Já guardado: ${brl(math.jaTem)} | Prazo: ${math.prazoMeses} meses | Guardar por mês: ${brl(math.porMes)}`,
     ``,
-    `CÁLCULOS JÁ FEITOS (use estes números, não recalcule):`,
-    `- No ritmo informado, junta ${brl(math.totalPoupado)} ao fim do prazo.`,
+    `CÁLCULOS JÁ FEITOS (use, não recalcule):`,
     math.viavel
-      ? `- Isso ALCANÇA o objetivo (sobra ${brl(-math.falta)}).`
-      : `- Isso NÃO alcança: faltariam ${brl(math.falta)}.`,
-    math.requeridoPorMes != null
-      ? `- Para fechar exatamente no prazo, precisaria guardar ${brl(math.requeridoPorMes)} por mês.`
-      : `- Prazo não informado corretamente.`,
-    math.mesesNoRitmo != null ? `- No ritmo atual, alcançaria em cerca de ${math.mesesNoRitmo} meses.` : ``,
-    income > 0 ? `- Renda mensal informada pela pessoa: ${brl(income)}.` : `- Renda da pessoa: não informada.`,
-    (income > 0 && pctRenda != null) ? `- O valor mensal representa cerca de ${pctRenda}% da renda dela.` : ``,
+      ? `- No ritmo informado, ALCANÇA o objetivo no prazo (sobra ${brl(-math.falta)}).`
+      : `- No ritmo informado, NÃO alcança: faltariam ${brl(math.falta)}. Para fechar no prazo seria preciso ${brl(math.requeridoPorMes)}/mês.`,
+    income > 0 ? `- Renda mensal: ${brl(income)}.` : `- Renda: não informada.`,
+    budget ? `- Gastos mensais: ${brl(budget.gastos)} | Sobra por mês (orçamento atual): ${brl(budget.sobra)}.` : `- Orçamento atual: não informado.`,
+    future ? `- META DE ORÇAMENTO FUTURO da pessoa: renda alvo ${brl(future.rendaFutura)}, gastos alvo ${brl(future.gastosFuturos)} → pretende SOBRAR ${brl(future.sobraFutura)}/mês${future.prazoMeta ? ` em ${future.prazoMeta} meses` : ''}.` : `- Meta de orçamento futuro: não informada.`,
+    `- Somando este objetivo aos outros, o total a guardar por mês seria ${brl(totalMensal)}.`,
+    orcamentoDisponivel != null
+      ? `- Dinheiro disponível por mês para objetivos (base: ${baseTipo === 'meta_futura' ? 'META de orçamento futuro' : baseTipo === 'sobra' ? 'sobra do orçamento atual' : 'renda'}): ${brl(orcamentoDisponivel)}. ${extrapola ? 'ISSO EXTRAPOLA o disponível.' : 'Cabe no disponível.'}`
+      : `- Não dá para checar o orçamento (faltam dados).`,
+    ``,
+    `Objetivos já cadastrados pela pessoa:`,
+    listaExist,
   ].filter(Boolean).join('\n');
 
   const instrucao = `Você avalia um objetivo financeiro que um trabalhador brasileiro acabou de cadastrar.
 
-Primeiro decida se o preenchimento é SÉRIO (valid=true) ou se são valores claramente aleatórios/de teste, como "111", "999", "aaa" (valid=false). Não julgue a situação financeira; objetivo ambicioso ou caro é válido.
+Decida quatro coisas:
+1. valid: true se o preenchimento é sério; false só se forem valores aleatórios/de teste (ex.: "111", "aaa").
+2. overlap: true se este novo objetivo é essencialmente O MESMO que algum já cadastrado na lista (ex.: já tem "comprar casa" e cadastrou "casa própria"). Objetivos diferentes (casa e carro) NÃO são sobreposição.
+3. classificacao: quão bem planejado está o objetivo, um de:
+   - "bem": factível no prazo, cabe no orçamento/meta, valores realistas e coerentes.
+   - "parcial": dá para seguir, mas com ressalvas (aperta o orçamento, prazo justo, ou algo a melhorar).
+   - "insuficiente": não fecha no prazo, não cabe no orçamento, está mal preenchido/irrealista, ou é repetido.
+4. feedback: um texto curto (máx. 90 palavras), em segunda pessoa ("você"), simples e caloroso, que:
+   - Se está tudo certo (alcança o objetivo e cabe no orçamento): comemore e reforce o hábito.
+   - Se NÃO alcança no prazo: explique com gentileza e sugira esticar o prazo, aumentar o valor mensal ou reduzir a meta (use números).
+   - Se EXTRAPOLA o orçamento (a soma dos objetivos não cabe no disponível): avise com cuidado que o total mensal não cabe, e sugira priorizar um objetivo, reduzir valores ou alongar prazos. Se a base usada foi a META de orçamento futuro, deixe claro que a comparação já considera a meta dela (não só o orçamento de hoje).
+   - Se é SOBREPOSIÇÃO: diga gentilmente que ele já tem esse objetivo e sugira ajustar o existente em vez de duplicar.
+   - Nunca desanime a pessoa por sonhar. Não recomende produtos de investimento. Não peça dados sensíveis.
 
-Se for sério, escreva um feedback curto (3 a 5 frases, no máximo 90 palavras), em segunda pessoa ("você"), linguagem simples e calorosa:
-- Seja honesto sobre a viabilidade, mas NUNCA desanime a pessoa por sonhar.
-- Se o plano fecha, comemore e reforce o hábito. Se não fecha, aponte com gentileza e ofereça 2 caminhos concretos: esticar o prazo, aumentar o valor mensal ou ajustar a meta (use números quando ajudar).
-- Se o valor mensal for uma fatia grande da renda, comente com cuidado que precisa caber no orçamento.
-- Não recomende produtos de investimento específicos. Não peça dados sensíveis.
-- Incorpore os números de forma natural, sem listar números crus.
+Responda SOMENTE com JSON, sem markdown: {"valid": true|false, "overlap": true|false, "classificacao": "insuficiente|parcial|bem", "feedback": "texto"}
 
-Responda SOMENTE com JSON, sem markdown: {"valid": true|false, "feedback": "seu texto (ou, se valid=false, uma frase curta pedindo para completar de verdade)"}
-
-Dados do objetivo e cálculos:
+Dados:
 ${contas}`;
 
   try {
@@ -168,13 +226,18 @@ ${contas}`;
         messages: [{ role: 'user', content: instrucao }],
       }),
     });
-    if (!r.ok) return { valid: true, feedback: '' };
+    if (!r.ok) return { valid: true, overlap: false, feedback: '' };
     const j = await r.json();
     const txt = (j?.choices?.[0]?.message?.content || '').replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(txt);
-    return { valid: parsed.valid !== false, feedback: parsed.feedback || '' };
+    return {
+      valid: parsed.valid !== false,
+      overlap: parsed.overlap === true,
+      classificacao: parsed.classificacao,
+      feedback: parsed.feedback || '',
+    };
   } catch {
-    return { valid: true, feedback: '' };
+    return { valid: true, overlap: false, feedback: '' };
   }
 }
 
@@ -281,31 +344,119 @@ export default async function handler(req, res) {
     let objetivoAvaliacao = null;
     if (mission.type === 'form') {
       if (mission.id === 'obj_criar') {
-        // Objetivo: uma única chamada faz a checagem E o feedback (mais rápido e seguro).
+        // Só pontua se o objetivo for factível, couber no orçamento e não se sobrepor.
         const math = computeObjectiveMath(data);
-        const income = await personIncome(user.matricula);
-        const { status, pctRenda } = objectiveStatus(math, income);
-        const evalr = await evaluateObjective(data, math, income, pctRenda);
+        const subsAll = await listSubmissions({ matricula: user.matricula, limit: 200 });
+        const budget = deriveBudget(subsAll);
+        const future = deriveFutureBudget(subsAll);
+        const income = deriveIncome(subsAll);
+        const existentes = activeObjectives(subsAll);
 
-        if (!evalr.valid) {
-          return res.status(200).json({ ok: false, message: evalr.feedback || 'Complete os campos do objetivo com valores reais.' });
+        // Limite de 3 objetivos ativos.
+        if (existentes.length >= 3) {
+          return res.status(200).json({
+            ok: false,
+            message: 'Você já tem 3 objetivos, que é o limite. Conclua um ("Alcancei meu objetivo") ou ajuste antes de criar outro.',
+          });
+        }
+
+        // Soma mensal de todos os objetivos (aprovados + este) x orçamento disponível.
+        const somaExistente = existentes.reduce((a, o) => a + o.porMes, 0);
+        const totalMensal = Math.round(somaExistente + math.porMes);
+
+        // A comparação prioriza a META DE ORÇAMENTO FUTURO, quando informada.
+        let orcamentoDisponivel = null, baseTipo = null;
+        if (future && future.sobraFutura > 0) { orcamentoDisponivel = future.sobraFutura; baseTipo = 'meta_futura'; }
+        else if (budget) { orcamentoDisponivel = budget.sobra; baseTipo = 'sobra'; }
+        else if (income > 0) { orcamentoDisponivel = income; baseTipo = 'renda'; }
+        const extrapola = orcamentoDisponivel != null && totalMensal > orcamentoDisponivel;
+
+        const ai = await evaluateObjective({
+          data, math, income, budget, future, existentes,
+          totalMensal, orcamentoDisponivel, baseTipo, extrapola,
+        });
+
+        // Preenchimento sem sentido: rejeita (não conta como tentativa).
+        if (!ai.valid) {
+          return res.status(200).json({ ok: false, message: ai.feedback || 'Complete os campos do objetivo com valores reais.' });
+        }
+
+        // As três validações:
+        const factivel = math.viavel;                       // (1) plausível/factível: fecha no prazo
+        const dentroOrcamento = !extrapola;                 // (2) cabe no orçamento mensal
+        const overlap = ai.overlap || codeOverlap(data.objetivo, existentes); // (3) não se sobrepõe
+        const podePontuar = factivel && dentroOrcamento && !overlap;
+
+        // Situação (para a cor e o texto da tela)
+        let status;
+        if (overlap) status = 'sobreposto';
+        else if (extrapola) status = 'orcamento';
+        else if (!factivel) status = 'ajustar';
+        else if (budget && budget.sobra > 0 && math.porMes > 0.7 * budget.sobra) status = 'apertado';
+        else status = 'viavel';
+
+        const pctRenda = (income > 0) ? Math.round((math.porMes / income) * 100) : null;
+
+        // Classificação do planejamento (IA), com fallback deterministico.
+        let classificacao = ai.classificacao;
+        if (!['insuficiente', 'parcial', 'bem'].includes(classificacao)) {
+          if (!podePontuar) classificacao = 'insuficiente';
+          else if (status === 'apertado') classificacao = 'parcial';
+          else classificacao = 'bem';
+        }
+
+        const resumo = {
+          custo: math.custo, jaTem: math.jaTem, prazoMeses: math.prazoMeses,
+          porMes: math.porMes, viavel: math.viavel, falta: math.falta,
+          requeridoPorMes: math.requeridoPorMes, mesesNoRitmo: math.mesesNoRitmo,
+          pctRenda, somaExistente: Math.round(somaExistente), totalMensal,
+          orcamentoDisponivel, baseTipo,
+          sobraAtual: budget ? budget.sobra : null,
+          sobraFutura: future ? future.sobraFutura : null,
+        };
+        const avaliacao = { status, classificacao, feedback: ai.feedback, objetivo: data.objetivo || '', pontuou: podePontuar, resumo };
+
+        // Não pontua: NÃO salva o objetivo, devolve o feedback para a pessoa ajustar.
+        if (!podePontuar) {
+          return res.status(200).json({
+            ok: true, pontuou: false, earned: 0,
+            objetivo: avaliacao,
+            user: publicUser(user),
+          });
+        }
+
+        // Pontua: segue o fluxo normal de creditação.
+        sub.status = 'aprovado';
+        sub.points = mission.points;
+        sub.note = status === 'apertado'
+          ? 'Objetivo viável, mas aperta o orçamento.'
+          : 'Objetivo viável e dentro do orçamento.';
+        objetivoAvaliacao = avaliacao;
+      } else if (mission.id === 'orc_metas') {
+        // Valida se a proposta orçamentária é coerente.
+        const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR');
+        const rendaF = num(data.renda_futura);
+        const gastosF = num(data.gastos_futuros);
+        if (rendaF <= 0) {
+          return res.status(200).json({ ok: false, message: 'Informe uma renda meta maior que zero.' });
+        }
+        if (gastosF < 0) {
+          return res.status(200).json({ ok: false, message: 'Os gastos meta não podem ser negativos.' });
+        }
+        if (gastosF > rendaF) {
+          return res.status(200).json({
+            ok: false,
+            message: `Sua proposta não fecha: os gastos meta (${brl(gastosF)}) passam da renda meta (${brl(rendaF)}). Ajuste para sobrar algo e conseguir poupar.`,
+          });
+        }
+        // Nonsense (ex.: "111", "aaa") ainda é barrado pela checagem de coerência da IA.
+        const check = await validateForm(mission, data);
+        if (!check.valid) {
+          return res.status(200).json({ ok: false, message: check.feedback || 'Complete os campos com valores reais.' });
         }
         sub.status = 'aprovado';
         sub.points = mission.points;
-        objetivoAvaliacao = {
-          status,
-          feedback: evalr.feedback,
-          objetivo: data.objetivo || '',
-          resumo: {
-            custo: math.custo, jaTem: math.jaTem, prazoMeses: math.prazoMeses,
-            porMes: math.porMes, viavel: math.viavel, falta: math.falta,
-            requeridoPorMes: math.requeridoPorMes, mesesNoRitmo: math.mesesNoRitmo,
-            pctRenda,
-          },
-        };
-        sub.note = math.viavel
-          ? 'Objetivo viável no ritmo informado.'
-          : `Objetivo precisa de ajuste: faltariam R$ ${math.falta} no prazo.`;
+        sub.note = `Meta: sobrar ${brl(rendaF - gastosF)}/mês`;
       } else {
         const check = await validateForm(mission, data);
         if (!check.valid) {

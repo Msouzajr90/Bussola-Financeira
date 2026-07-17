@@ -99,12 +99,27 @@ avalia a viabilidade e devolve um feedback na hora:
 - O **GPT** recebe esses números prontos (mais a renda que a pessoa já informou no orçamento)
   e escreve um feedback curto, honesto e encorajador, sugerindo ajustes quando o plano não
   fecha (esticar prazo, mudar valor mensal ou meta).
-- O resultado aparece numa tela com três situações: **viável** (verde), **apertado** (amarelo,
-  quando compromete muito da renda) e **ajustar** (laranja, quando não fecha no prazo).
-- Usa a mesma API do Orientador (`OPENAI_API_KEY`). Custo: uma chamada por objetivo criado.
-
-O objetivo pontua mesmo quando é ambicioso — premiar o hábito de planejar é o ponto; o
-feedback ajuda a pessoa a torná-lo realista.
+- O colaborador pode informar suas **metas de orçamento futuro** (missão "Defina suas metas
+  de orçamento"): a renda e os gastos que ele quer ter. Ao avaliar um objetivo, a plataforma
+  compara o total mensal contra essa **meta futura** quando ela existe (em vez do orçamento
+  de hoje), porque objetivos são de longo prazo. Sem a meta, usa o orçamento atual.
+- **Coerência da proposta orçamentária:** ao definir as metas de orçamento futuro, o sistema
+  verifica se a proposta fecha — se os gastos meta passam da renda meta, é recusada com um aviso
+  para ajustar (não dá para planejar gastar mais do que ganha).
+- **Limite de 3 objetivos ativos:** o colaborador pode ter no máximo 3 objetivos ao mesmo tempo.
+  Ao atingir o limite, a missão mostra "Limite atingido (3/3)"; para criar outro, conclui ou ajusta um.
+- **Classificação de cada objetivo pela IA:** além da viabilidade, a IA classifica o planejamento
+  em três níveis — **Insuficiente**, **Parcialmente suficiente** ou **Missão bem planejada** — com
+  um comentário. O selo aparece colorido na tela de avaliação do objetivo.
+- **O objetivo só pontua se passar em três validações:** (1) ser factível — o plano fecha no
+  prazo; (2) caber no orçamento — a soma do que a pessoa se compromete a guardar por mês em
+  TODOS os objetivos não pode passar da sobra do orçamento; (3) não se sobrepor a um objetivo
+  que ela já tem (ex.: dois "comprar casa").
+- Quando não passa, o objetivo NÃO é salvo nem pontua: a tela explica o motivo e oferece
+  **"Ajustar objetivo"** (reabre o formulário já preenchido) para a pessoa corrigir e concluir.
+- As telas usam cores por situação: viável (verde), apertado (amarelo), ajustar/orçamento
+  (laranja) e sobreposto (azul).
+- Usa a mesma API do Orientador (`OPENAI_API_KEY`), numa única chamada por tentativa.
 
 ---
 
