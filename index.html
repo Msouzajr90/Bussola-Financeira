@@ -171,11 +171,37 @@
   .ofb-class b{ font-weight:700; }
   .ofb-class.bem{ background:#E1F5EE; color:#0F6E56; } .ofb-class.bem .dot{ background:#1D9E75; }
   .ofb-class.parcial{ background:#FAEEDA; color:#854F0B; } .ofb-class.parcial .dot{ background:#BA7517; }
-  .ofb-class.insuf{ background:#FCEBEB; color:#A32D2D; } .ofb-class.insuf .dot{ background:#A32D2D; }
+  .ofb-class.insuf{ background:#EAF4FB; color:#00406B; } .ofb-class.insuf .dot{ background:#309CD8; }
   .ofb-text{ font-size:15px; line-height:1.6; color:var(--ink); }
   .ofb-num{ margin-top:14px; background:var(--paper); border:1px solid var(--line); border-radius:11px;
     padding:12px 14px; font-size:13px; color:var(--muted); line-height:1.6; }
   .ofb-num b{ color:var(--blue-deep); }
+  .alerta{ margin-top:10px; padding:10px 12px; border-radius:9px; font-size:12.5px; line-height:1.5; }
+  .alerta.bad{ background:#FCEBEB; border:1px solid #F0C4C4; color:#A32D2D; }
+  .alerta.warn{ background:#FDF3E2; border:1px solid #F0DAB0; color:#854F0B; }
+
+  /* Saldo ao vivo no orçamento */
+  .livebox{ margin-top:16px; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .lb-row{ display:flex; justify-content:space-between; align-items:center; font-size:13.5px; color:var(--muted); padding:4px 0; }
+  .lb-row b{ color:var(--ink); font-weight:600; }
+  .lb-row.total{ border-top:1px solid var(--line); margin-top:6px; padding-top:9px; font-size:15px; }
+  .lb-row.total b{ font-family:'Archivo',sans-serif; font-weight:800; font-size:17px; }
+  .lb-row.total.pos b{ color:#0F6E56; }
+  .lb-row.total.neg b{ color:#A32D2D; }
+  .lb-row.total.neg span{ color:#A32D2D; font-weight:600; }
+
+  /* Meus objetivos */
+  .objrow{ display:flex; align-items:center; gap:12px; padding:13px 18px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .objrow:last-child{ border-bottom:none; }
+  .objinfo{ flex:1 1 190px; min-width:0; }
+  .objt{ font-size:14.5px; font-weight:600; color:var(--ink); }
+  .objd{ font-size:12.5px; color:var(--muted); margin-top:2px; }
+  .objacts{ display:flex; gap:7px; flex:0 0 auto; }
+  .objbtn{ font-size:12.5px; font-weight:600; color:var(--blue-deep); background:var(--surface);
+    border:1px solid var(--line); border-radius:9px; padding:7px 13px; cursor:pointer; }
+  .objbtn:hover{ border-color:var(--cyan); color:var(--blue); }
+  .objbtn.del{ color:#A32D2D; }
+  .objbtn.del:hover{ border-color:#E9A9A9; background:#FDF2F2; }
   .ofb-foot{ display:flex; gap:9px; padding:0 22px 22px; }
   .ofb-chat{ flex:1; font-weight:600; font-size:13.5px; color:var(--blue-deep); background:var(--surface);
     border:1px solid var(--line); border-radius:11px; padding:12px; cursor:pointer; }
@@ -406,7 +432,10 @@
     </div>
 
     <!-- Missões -->
-    <div id="vMissoes"><div class="empty">Carregando…</div></div>
+    <div id="vMissoes">
+      <div id="objPanel"></div>
+      <div id="missList"><div class="empty">Carregando…</div></div>
+    </div>
 
     <!-- Concluídas -->
     <div id="vFeitas" style="display:none"></div>
@@ -566,7 +595,7 @@
     $('userbox').style.display='flex';
     $('uName').textContent = state.user.nome;
     $('uMat').textContent = 'Matrícula ' + state.user.matricula;
-    renderHero(); renderMissions(); renderFeitas(); renderPrizes();
+    renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes();
     if(!chatHist.length) initChat();
   }
 
@@ -741,7 +770,7 @@
   $('luBtn').onclick = ()=> $('levelup').classList.remove('on');
 
   /* ---- Avaliação do objetivo (feedback da IA) ---- */
-  function showObjectiveFeedback(obj, earned, levelUp){
+  function showObjectiveFeedback(obj, earned, levelUp, editou){
     const map = {
       viavel:    { ic:'🎯', t:'Plano viável!' },
       apertado:  { ic:'⚖️', t:'Dá — mas é apertado' },
@@ -754,24 +783,26 @@
     $('ofbHead').className = 'ofb-head ' + (obj.status || 'viavel');
     $('ofbIc').textContent = meta.ic;
     $('ofbStatus').textContent = meta.t;
-    $('ofbEarn').textContent = pontuou
-      ? ('+' + earned + ' pontos · ' + (obj.objetivo || 'objetivo criado'))
-      : ('Ainda sem pontos — ajuste para concluir');
+    $('ofbEarn').textContent = !pontuou
+      ? 'Ainda sem pontos — ajuste para concluir'
+      : editou
+        ? ('Objetivo atualizado · ' + (obj.objetivo || ''))
+        : ('+' + earned + ' pontos · ' + (obj.objetivo || 'objetivo criado'));
 
     const r = obj.resumo || {};
     const brl = n => 'R$ ' + Number(n||0).toLocaleString('pt-BR');
 
     // Classificação do planejamento (3 níveis)
     const cls = {
-      bem:         { t:'Missão bem planejada', c:'bem' },
-      parcial:     { t:'Parcialmente suficiente', c:'parcial' },
-      insuficiente:{ t:'Insuficiente', c:'insuf' },
+      bem:         { t:'Plano sólido', c:'bem' },
+      parcial:     { t:'No caminho', c:'parcial' },
+      insuficiente:{ t:'Início de plano', c:'insuf' },
     };
     const ci = cls[obj.classificacao];
     const ce = $('ofbClass');
     if(ci){
       ce.className = 'ofb-class ' + ci.c;
-      ce.innerHTML = '<span class="dot"></span>Planejamento: <b>' + ci.t + '</b>';
+      ce.innerHTML = '<span class="dot"></span><b>' + ci.t + '</b>';
       ce.style.display = 'flex';
     } else { ce.style.display = 'none'; }
 
@@ -826,6 +857,97 @@
     openMission('obj_criar'); // reabre já preenchido com o último objetivo
   };
 
+  /* ---- Resumo do orçamento, com destaque de estouro e zeros ---- */
+  function showBudgetFeedback(o, earned, levelUp){
+    const brl = n => 'R$ ' + Number(n||0).toLocaleString('pt-BR');
+    const meta = !!o.meta;
+    $('ofbHead').className = 'ofb-head ' + (o.estouro ? 'orcamento' : 'viavel');
+    $('ofbIc').textContent = o.estouro ? '🚨' : (meta ? '🎯' : '📊');
+    $('ofbStatus').textContent = o.estouro
+      ? 'Atenção: orçamento estourado'
+      : (meta ? 'Metas registradas!' : 'Orçamento registrado!');
+    $('ofbEarn').textContent = '+' + earned + ' pontos';
+    $('ofbClass').style.display = 'none';
+
+    let txt;
+    if(o.estouro){
+      txt = 'Seus gastos passam o que entra em ' + brl(o.excesso) + ' por mês. Isso não tira seus pontos — reconhecer é o primeiro passo, e é exatamente por isso que você está aqui. Vamos olhar juntos onde dá para respirar: fale com o Orientador.';
+    } else if(meta){
+      txt = 'Suas metas estão registradas. É por elas que seus objetivos vão ser avaliados daqui pra frente.';
+    } else {
+      txt = 'Orçamento registrado! Agora dá para ver com clareza para onde seu dinheiro está indo.';
+    }
+    $('ofbText').textContent = txt;
+
+    let num = '<b>Entra:</b> ' + brl(o.renda) + ' &nbsp;·&nbsp; <b>Sai:</b> ' + brl(o.gastos) +
+      ' &nbsp;·&nbsp; <b>' + (o.saldo < 0 ? 'Falta' : 'Sobra') + ':</b> ' + brl(Math.abs(o.saldo));
+    if(o.estouro){
+      num += '<div class="alerta bad">🚨 Estouro de ' + brl(o.excesso) + ' por mês. Enquanto isso durar, a dívida cresce.</div>';
+    }
+    if((o.zerados||[]).length){
+      num += '<div class="alerta warn">⚠️ Você deixou ' + o.zerados.length + ' campo(s) em zero. Se foi de propósito, tudo bem — mas confira se não esqueceu algum valor, porque isso muda a conta.</div>';
+    }
+    $('ofbNum').innerHTML = num;
+    $('ofbNum').style.display = 'block';
+    $('ofbAdjust').style.display = 'none';
+    $('ofbOk').textContent = 'Entendi';
+
+    pendingLevelUp = levelUp || null;
+    $('objFb').classList.add('on');
+  }
+
+  /* ---- Meus objetivos: editar e excluir ---- */
+  function meusObjetivos(){
+    return (state.submissions||[])
+      .filter(s=>s.missionId==='obj_criar' && s.status==='aprovado' && s.data)
+      .sort((a,b)=>a.createdAt-b.createdAt);
+  }
+
+  function renderObjetivos(){
+    const objs = meusObjetivos();
+    const el = $('objPanel');
+    if(!objs.length){ el.innerHTML=''; return; }
+    const brl = n => 'R$ ' + Number(n||0).toLocaleString('pt-BR');
+    el.innerHTML = '<div class="track"><div class="track-head"><h3>Meus objetivos</h3>'+
+      '<p>'+objs.length+' de 3 · você pode editar ou excluir a qualquer momento</p></div>'+
+      objs.map(o=>{
+        const d = o.data||{};
+        return '<div class="objrow"><div class="objinfo">'+
+          '<div class="objt">'+esc(d.objetivo||'Objetivo')+'</div>'+
+          '<div class="objd">'+brl(d.custo)+' · guardando '+brl(d.por_mes)+'/mês · '+esc(String(d.prazo_meses||'?'))+' meses</div>'+
+          '</div><div class="objacts">'+
+          '<button class="objbtn" data-oe="'+esc(o.id)+'">Editar</button>'+
+          '<button class="objbtn del" data-ox="'+esc(o.id)+'">Excluir</button>'+
+          '</div></div>';
+      }).join('')+'</div>';
+    document.querySelectorAll('[data-oe]').forEach(b=> b.onclick = ()=> editarObjetivo(b.dataset.oe));
+    document.querySelectorAll('[data-ox]').forEach(b=> b.onclick = ()=> excluirObjetivo(b.dataset.ox));
+  }
+
+  let editandoObj = null;
+  function editarObjetivo(id){
+    const o = meusObjetivos().find(x=>x.id===id);
+    if(!o) return;
+    lastObjData = { ...(o.data||{}) };
+    openMission('obj_criar');
+    editandoObj = id;
+    $('mTitle').textContent = 'Editar objetivo';
+    $('mSend').textContent = 'Salvar alterações';
+  }
+
+  async function excluirObjetivo(id){
+    const o = meusObjetivos().find(x=>x.id===id);
+    if(!o) return;
+    const pts = o.points || 0;
+    if(!confirm('Excluir o objetivo "'+((o.data||{}).objetivo||'')+'"?\n\nOs '+pts+' pontos que ele deu serão devolvidos.')) return;
+    try{
+      await api('/api/missions', { method:'POST', body: JSON.stringify({ action:'objExcluir', id }) });
+      toast('Objetivo excluído.');
+      state = await api('/api/missions');
+      renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes();
+    }catch(err){ toast(err.message); }
+  }
+
   function subStatus(missionId){
     const s = (state.submissions||[]).filter(x=>x.missionId===missionId);
     if(s.some(x=>x.status==='pendente')) return 'pendente';
@@ -834,7 +956,7 @@
 
   function renderMissions(){
     const done = state.user.done || {};
-    $('vMissoes').innerHTML = state.tracks.map(t=>{
+    $('missList').innerHTML = state.tracks.map(t=>{
       const rows = t.missions.map(m=>{
         const feito = done[m.id] || 0;
         const pend = subStatus(m.id);
@@ -938,7 +1060,7 @@
 
   /* ---------- modal de missão ---------- */
   function openMission(id){
-    curLesson = null;
+    curLesson = null; editandoObj = null;
     let mission=null;
     for(const t of state.tracks){ const m=t.missions.find(x=>x.id===id); if(m){ mission=m; break; } }
     if(!mission) return;
@@ -967,6 +1089,10 @@
         else input = '<input type="'+(f.type==='number'?'number':'text')+'" id="f_'+f.id+'">';
         return '<div class="row"><label for="f_'+f.id+'">'+esc(f.label)+'</label>'+input+'</div>';
       }).join('');
+      // Orçamento: mostra entra/sai/saldo ao vivo, destacando o estouro.
+      if(mission.id === 'orc_montar'){
+        html += '<div class="livebox" id="liveBox"></div>';
+      }
     }
     $('mBody').innerHTML = html;
     $('mSend').textContent = mission.type==='proof' ? 'Enviar comprovante' : 'Enviar';
@@ -976,6 +1102,27 @@
     // Ao ajustar um objetivo, reabre com os valores que a pessoa já digitou.
     if(mission.id === 'obj_criar' && lastObjData){
       (mission.fields||[]).forEach(f=>{ const el=$('f_'+f.id); if(el && lastObjData[f.id]!=null) el.value = lastObjData[f.id]; });
+    }
+
+    // Orçamento ao vivo
+    if(mission.id === 'orc_montar'){
+      const cats = ['moradia','contas','alimentacao','transporte','parcelas','outros'];
+      const nn = v => { const x = parseFloat(String(v||'').replace(',','.')); return isFinite(x)?x:0; };
+      const upd = ()=>{
+        const renda = nn(($('f_renda')||{}).value);
+        const gastos = cats.reduce((a,k)=> a + nn(($('f_'+k)||{}).value), 0);
+        const saldo = renda - gastos;
+        const brl = n => 'R$ ' + Number(n||0).toLocaleString('pt-BR', {maximumFractionDigits:2});
+        const zeros = ['renda',...cats].filter(k=> nn(($('f_'+k)||{}).value) === 0).length;
+        let h = '<div class="lb-row"><span>Entra</span><b>'+brl(renda)+'</b></div>'+
+                '<div class="lb-row"><span>Sai</span><b>'+brl(gastos)+'</b></div>'+
+                '<div class="lb-row total '+(saldo<0?'neg':'pos')+'"><span>'+(saldo<0?'Falta':'Sobra')+'</span><b>'+brl(Math.abs(saldo))+'</b></div>';
+        if(saldo < 0) h += '<div class="alerta bad">🚨 Estouro de '+brl(Math.abs(saldo))+' por mês. Pode registrar assim mesmo — reconhecer já é um passo.</div>';
+        if(zeros) h += '<div class="alerta warn">⚠️ '+zeros+' campo(s) em zero. Se for real, tudo bem; só confira se não esqueceu algum.</div>';
+        $('liveBox').innerHTML = h;
+      };
+      ['renda',...cats].forEach(k=>{ const el=$('f_'+k); if(el) el.addEventListener('input', upd); });
+      upd();
     }
 
     if(mission.type === 'proof'){
@@ -1040,16 +1187,22 @@
 
     $('mSend').disabled = true; $('mSend').textContent = 'Enviando…';
     try{
-      const j = await api('/api/missions', { method:'POST', body: JSON.stringify({
-        missionId: m.id, data, file, fileName }) });
+      const payload = editandoObj
+        ? { action:'objEditar', id: editandoObj, data }
+        : { missionId: m.id, data, file, fileName };
+      const j = await api('/api/missions', { method:'POST', body: JSON.stringify(payload) });
 
       if(j.ok === false){ toast(j.message || 'Revise o preenchimento.'); return; }
 
       $('veil').classList.remove('on');
       if(j.pending){ toast(j.message); }
       else if(j.objetivo){
-        showObjectiveFeedback(j.objetivo, j.earned, j.levelUp || null);
+        const editou = !!editandoObj;
+        showObjectiveFeedback(j.objetivo, editou ? 0 : j.earned, editou ? null : (j.levelUp || null), editou);
         if(j.objetivo.pontuou !== false) lastObjData = null;
+      }
+      else if(j.orcamento){
+        showBudgetFeedback(j.orcamento, j.earned, j.levelUp || null);
       }
       else {
         let msg = '+' + j.earned + ' pontos!';
@@ -1057,8 +1210,9 @@
         toast(msg);
         if(j.levelUp) setTimeout(()=> celebrate(j.levelUp), 700);
       }
+      editandoObj = null;
       state = await api('/api/missions');
-      renderHero(); renderMissions(); renderFeitas(); renderPrizes();
+      renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes();
     }catch(err){ toast(err.message); }
     finally{ $('mSend').disabled=false; $('mSend').textContent = m.type==='proof'?'Enviar comprovante':'Enviar'; }
   };
@@ -1201,7 +1355,7 @@
       toast('+' + j.earned + ' pontos!');
       if(j.levelUp) setTimeout(()=> celebrate(j.levelUp), 700);
       state = await api('/api/missions');
-      renderHero(); renderMissions(); renderFeitas(); renderPrizes();
+      renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes();
       await loadLessons();
     }catch(err){ toast(err.message); $('mSend').disabled=false; $('mSend').textContent='Concluir aula'; }
   }

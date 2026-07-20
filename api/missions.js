@@ -12,7 +12,7 @@
 import crypto from 'node:crypto';
 import {
   sessionUser, saveUser, saveSubmission, listSubmissions,
-  saveFile, getPrizes, customFor, countUsers, dbReady,
+  saveFile, getPrizes, customFor, countUsers, getSubmission, deleteSubmission, dbReady,
 } from '../lib/store.js';
 import { publicCatalog, findMission, levelFor, STREAK_BONUS, publicUser } from '../lib/missions.js';
 
@@ -36,8 +36,11 @@ ${campos}
 
 Avalie APENAS se o preenchimento é sério e coerente — não julgue a situação financeira
 da pessoa, nem se ela está endividada ou ganha pouco. Estar no vermelho é aceitável.
-Rejeite somente se: houver campos essenciais vazios, valores claramente aleatórios ou
-de teste (ex.: 111, 999, "aaa"), ou respostas que não têm relação com a pergunta.
+IMPORTANTE: valores ZERO (0) são respostas VÁLIDAS — muita gente realmente não tem gasto
+em alguma categoria, ou ainda não guardou nada. NUNCA rejeite por causa de zeros, nem por
+gastos maiores que a renda. Campos numéricos vazios também são aceitáveis (valem zero).
+Rejeite somente se: valores claramente aleatórios ou de teste (ex.: 111111, "aaa", "teste"),
+ou respostas de texto que não têm relação com a pergunta.
 
 Responda SOMENTE com JSON, sem markdown:
 {"valid": true|false, "feedback": "uma frase curta, gentil, dizendo o que falta"}`;
@@ -128,10 +131,11 @@ function deriveIncome(subs) {
 }
 
 // Objetivos já aprovados (para somar o mensal e checar sobreposição).
-function activeObjectives(subs) {
+function activeObjectives(subs, exceptId) {
   return subs
     .filter(x => x.missionId === 'obj_criar' && x.status === 'aprovado' && x.data)
-    .map(x => ({ objetivo: x.data.objetivo || '', porMes: num(x.data.por_mes), custo: num(x.data.custo) }));
+    .filter(x => !exceptId || x.id !== exceptId)
+    .map(x => ({ id: x.id, objetivo: x.data.objetivo || '', porMes: num(x.data.por_mes), custo: num(x.data.custo) }));
 }
 
 // Palavras-chave de um objetivo (sem acentos, sem verbos/artigos genéricos).
@@ -241,6 +245,84 @@ ${contas}`;
   }
 }
 
+// ----------------------------------------------------------------------------
+//  Avalia um objetivo (criação OU edição). Faz as contas, consulta a IA e
+//  decide se ele é factível, cabe no orçamento e não se sobrepõe.
+//  exceptId: ao editar, ignora o próprio objetivo nas comparações.
+// ----------------------------------------------------------------------------
+async function assessObjective({ matricula, data, exceptId, checkLimit }) {
+  const math = computeObjectiveMath(data);
+  const subsAll = await listSubmissions({ matricula, limit: 200 });
+  const budget = deriveBudget(subsAll);
+  const future = deriveFutureBudget(subsAll);
+  const income = deriveIncome(subsAll);
+  const existentes = activeObjectives(subsAll, exceptId);
+
+  if (checkLimit && existentes.length >= 3) {
+    return {
+      blocked: true,
+      message: 'Você já tem 3 objetivos, que é o limite. Exclua ou conclua um antes de criar outro.',
+    };
+  }
+
+  const somaExistente = existentes.reduce((a, o) => a + o.porMes, 0);
+  const totalMensal = Math.round(somaExistente + math.porMes);
+
+  // A comparação prioriza a META DE ORÇAMENTO FUTURO, quando informada.
+  let orcamentoDisponivel = null, baseTipo = null;
+  if (future && future.sobraFutura > 0) { orcamentoDisponivel = future.sobraFutura; baseTipo = 'meta_futura'; }
+  else if (budget) { orcamentoDisponivel = budget.sobra; baseTipo = 'sobra'; }
+  else if (income > 0) { orcamentoDisponivel = income; baseTipo = 'renda'; }
+  const extrapola = orcamentoDisponivel != null && totalMensal > orcamentoDisponivel;
+
+  const ai = await evaluateObjective({
+    data, math, income, budget, future, existentes,
+    totalMensal, orcamentoDisponivel, baseTipo, extrapola,
+  });
+
+  if (!ai.valid) {
+    return { blocked: true, message: ai.feedback || 'Complete os campos do objetivo com valores reais.' };
+  }
+
+  const factivel = math.viavel;
+  const dentroOrcamento = !extrapola;
+  const overlap = ai.overlap || codeOverlap(data.objetivo, existentes);
+  const podePontuar = factivel && dentroOrcamento && !overlap;
+
+  let status;
+  if (overlap) status = 'sobreposto';
+  else if (extrapola) status = 'orcamento';
+  else if (!factivel) status = 'ajustar';
+  else if (budget && budget.sobra > 0 && math.porMes > 0.7 * budget.sobra) status = 'apertado';
+  else status = 'viavel';
+
+  let classificacao = ai.classificacao;
+  if (!['insuficiente', 'parcial', 'bem'].includes(classificacao)) {
+    if (!podePontuar) classificacao = 'insuficiente';
+    else if (status === 'apertado') classificacao = 'parcial';
+    else classificacao = 'bem';
+  }
+
+  const resumo = {
+    custo: math.custo, jaTem: math.jaTem, prazoMeses: math.prazoMeses,
+    porMes: math.porMes, viavel: math.viavel, falta: math.falta,
+    requeridoPorMes: math.requeridoPorMes, mesesNoRitmo: math.mesesNoRitmo,
+    pctRenda: income > 0 ? Math.round((math.porMes / income) * 100) : null,
+    somaExistente: Math.round(somaExistente), totalMensal,
+    orcamentoDisponivel, baseTipo,
+    sobraAtual: budget ? budget.sobra : null,
+    sobraFutura: future ? future.sobraFutura : null,
+  };
+
+  return {
+    blocked: false,
+    avaliacao: {
+      status, classificacao, feedback: ai.feedback,
+      objetivo: data.objetivo || '', pontuou: podePontuar, resumo,
+    },
+  };
+}
+
 export default async function handler(req, res) {
   if (!dbReady) return res.status(500).json({ error: 'Banco de dados não configurado.' });
 
@@ -290,6 +372,46 @@ export default async function handler(req, res) {
   /* ---------------- Envio ---------------- */
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+
+    /* ---------------- Excluir um objetivo ---------------- */
+    // Os pontos daquele objetivo são devolvidos, para não virar farm de pontos
+    // (criar e excluir repetidamente).
+    if (body.action === 'objExcluir') {
+      const alvo = await getSubmission(String(body.id || ''));
+      if (!alvo || alvo.matricula !== user.matricula || alvo.missionId !== 'obj_criar') {
+        return res.status(404).json({ error: 'Objetivo não encontrado.' });
+      }
+      const devolver = alvo.points || 0;
+      user.points = Math.max(0, (user.points || 0) - devolver);
+      const d = { ...(user.done || {}) };
+      d.obj_criar = Math.max(0, (d.obj_criar || 1) - 1);
+      user.done = d;
+      await saveUser(user);
+      await deleteSubmission(alvo);
+      return res.status(200).json({ ok: true, removidos: devolver, user: publicUser(user) });
+    }
+
+    /* ---------------- Editar um objetivo ---------------- */
+    // Passa pelas mesmas validações, mas NÃO concede pontos de novo.
+    if (body.action === 'objEditar') {
+      const alvo = await getSubmission(String(body.id || ''));
+      if (!alvo || alvo.matricula !== user.matricula || alvo.missionId !== 'obj_criar') {
+        return res.status(404).json({ error: 'Objetivo não encontrado.' });
+      }
+      const novo = body.data || {};
+      const av = await assessObjective({ matricula: user.matricula, data: novo, exceptId: alvo.id });
+      if (av.blocked) return res.status(200).json({ ok: false, message: av.message });
+      if (!av.avaliacao.pontuou) {
+        return res.status(200).json({ ok: true, pontuou: false, editado: false, objetivo: av.avaliacao });
+      }
+      alvo.data = novo;
+      alvo.note = av.avaliacao.status === 'apertado'
+        ? 'Objetivo viável, mas aperta o orçamento. (editado)'
+        : 'Objetivo viável e dentro do orçamento. (editado)';
+      alvo.editadoEm = Date.now();
+      await saveSubmission(alvo);
+      return res.status(200).json({ ok: true, pontuou: true, editado: true, objetivo: av.avaliacao, user: publicUser(user) });
+    }
 
     // A missão pode vir do catálogo padrão ou ser uma missão especial do gestor.
     let mission = null;
@@ -341,86 +463,17 @@ export default async function handler(req, res) {
     }
 
     /* --- FORM: o GPT confere a coerência --- */
-    let objetivoAvaliacao = null;
+    let objetivoAvaliacao = null, orcamentoResumo = null;
     if (mission.type === 'form') {
       if (mission.id === 'obj_criar') {
-        // Só pontua se o objetivo for factível, couber no orçamento e não se sobrepor.
-        const math = computeObjectiveMath(data);
-        const subsAll = await listSubmissions({ matricula: user.matricula, limit: 200 });
-        const budget = deriveBudget(subsAll);
-        const future = deriveFutureBudget(subsAll);
-        const income = deriveIncome(subsAll);
-        const existentes = activeObjectives(subsAll);
-
-        // Limite de 3 objetivos ativos.
-        if (existentes.length >= 3) {
-          return res.status(200).json({
-            ok: false,
-            message: 'Você já tem 3 objetivos, que é o limite. Conclua um ("Alcancei meu objetivo") ou ajuste antes de criar outro.',
-          });
-        }
-
-        // Soma mensal de todos os objetivos (aprovados + este) x orçamento disponível.
-        const somaExistente = existentes.reduce((a, o) => a + o.porMes, 0);
-        const totalMensal = Math.round(somaExistente + math.porMes);
-
-        // A comparação prioriza a META DE ORÇAMENTO FUTURO, quando informada.
-        let orcamentoDisponivel = null, baseTipo = null;
-        if (future && future.sobraFutura > 0) { orcamentoDisponivel = future.sobraFutura; baseTipo = 'meta_futura'; }
-        else if (budget) { orcamentoDisponivel = budget.sobra; baseTipo = 'sobra'; }
-        else if (income > 0) { orcamentoDisponivel = income; baseTipo = 'renda'; }
-        const extrapola = orcamentoDisponivel != null && totalMensal > orcamentoDisponivel;
-
-        const ai = await evaluateObjective({
-          data, math, income, budget, future, existentes,
-          totalMensal, orcamentoDisponivel, baseTipo, extrapola,
-        });
-
-        // Preenchimento sem sentido: rejeita (não conta como tentativa).
-        if (!ai.valid) {
-          return res.status(200).json({ ok: false, message: ai.feedback || 'Complete os campos do objetivo com valores reais.' });
-        }
-
-        // As três validações:
-        const factivel = math.viavel;                       // (1) plausível/factível: fecha no prazo
-        const dentroOrcamento = !extrapola;                 // (2) cabe no orçamento mensal
-        const overlap = ai.overlap || codeOverlap(data.objetivo, existentes); // (3) não se sobrepõe
-        const podePontuar = factivel && dentroOrcamento && !overlap;
-
-        // Situação (para a cor e o texto da tela)
-        let status;
-        if (overlap) status = 'sobreposto';
-        else if (extrapola) status = 'orcamento';
-        else if (!factivel) status = 'ajustar';
-        else if (budget && budget.sobra > 0 && math.porMes > 0.7 * budget.sobra) status = 'apertado';
-        else status = 'viavel';
-
-        const pctRenda = (income > 0) ? Math.round((math.porMes / income) * 100) : null;
-
-        // Classificação do planejamento (IA), com fallback deterministico.
-        let classificacao = ai.classificacao;
-        if (!['insuficiente', 'parcial', 'bem'].includes(classificacao)) {
-          if (!podePontuar) classificacao = 'insuficiente';
-          else if (status === 'apertado') classificacao = 'parcial';
-          else classificacao = 'bem';
-        }
-
-        const resumo = {
-          custo: math.custo, jaTem: math.jaTem, prazoMeses: math.prazoMeses,
-          porMes: math.porMes, viavel: math.viavel, falta: math.falta,
-          requeridoPorMes: math.requeridoPorMes, mesesNoRitmo: math.mesesNoRitmo,
-          pctRenda, somaExistente: Math.round(somaExistente), totalMensal,
-          orcamentoDisponivel, baseTipo,
-          sobraAtual: budget ? budget.sobra : null,
-          sobraFutura: future ? future.sobraFutura : null,
-        };
-        const avaliacao = { status, classificacao, feedback: ai.feedback, objetivo: data.objetivo || '', pontuou: podePontuar, resumo };
+        const av = await assessObjective({ matricula: user.matricula, data, checkLimit: true });
+        if (av.blocked) return res.status(200).json({ ok: false, message: av.message });
 
         // Não pontua: NÃO salva o objetivo, devolve o feedback para a pessoa ajustar.
-        if (!podePontuar) {
+        if (!av.avaliacao.pontuou) {
           return res.status(200).json({
             ok: true, pontuou: false, earned: 0,
-            objetivo: avaliacao,
+            objetivo: av.avaliacao,
             user: publicUser(user),
           });
         }
@@ -428,32 +481,53 @@ export default async function handler(req, res) {
         // Pontua: segue o fluxo normal de creditação.
         sub.status = 'aprovado';
         sub.points = mission.points;
-        sub.note = status === 'apertado'
+        sub.note = av.avaliacao.status === 'apertado'
           ? 'Objetivo viável, mas aperta o orçamento.'
           : 'Objetivo viável e dentro do orçamento.';
-        objetivoAvaliacao = avaliacao;
+        objetivoAvaliacao = av.avaliacao;
+      } else if (mission.id === 'orc_montar') {
+        // O orçamento SEMPRE é aceito, mesmo no vermelho. O estouro vira destaque.
+        const check = await validateForm(mission, data);
+        if (!check.valid) {
+          return res.status(200).json({ ok: false, message: check.feedback || 'Confira o preenchimento.' });
+        }
+        const b = deriveBudget([{ missionId: 'orc_montar', data }]);
+        const cats = ['moradia', 'contas', 'alimentacao', 'transporte', 'parcelas', 'outros'];
+        const zerados = ['renda', ...cats].filter(k => num(data[k]) === 0);
+        orcamentoResumo = {
+          renda: b.renda, gastos: b.gastos, saldo: b.sobra,
+          estouro: b.sobra < 0, excesso: Math.abs(Math.min(0, b.sobra)),
+          zerados,
+        };
+        sub.status = 'aprovado';
+        sub.points = mission.points;
+        sub.note = b.sobra < 0
+          ? `Orçamento estourado em R$ ${Math.abs(b.sobra)}.`
+          : `Sobra de R$ ${b.sobra}/mês.`;
       } else if (mission.id === 'orc_metas') {
         // Valida se a proposta orçamentária é coerente.
         const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR');
         const rendaF = num(data.renda_futura);
         const gastosF = num(data.gastos_futuros);
-        if (rendaF <= 0) {
-          return res.status(200).json({ ok: false, message: 'Informe uma renda meta maior que zero.' });
-        }
-        if (gastosF < 0) {
-          return res.status(200).json({ ok: false, message: 'Os gastos meta não podem ser negativos.' });
+        if (gastosF < 0 || rendaF < 0) {
+          return res.status(200).json({ ok: false, message: 'Os valores não podem ser negativos.' });
         }
         if (gastosF > rendaF) {
           return res.status(200).json({
             ok: false,
-            message: `Sua proposta não fecha: os gastos meta (${brl(gastosF)}) passam da renda meta (${brl(rendaF)}). Ajuste para sobrar algo e conseguir poupar.`,
+            message: `Sua proposta não fecha: os gastos meta (${brl(gastosF)}) passam da renda meta (${brl(rendaF)}). Como isto é uma meta, ajuste para sobrar algo e conseguir poupar.`,
           });
         }
-        // Nonsense (ex.: "111", "aaa") ainda é barrado pela checagem de coerência da IA.
+        // Nonsense (ex.: "aaa") ainda é barrado pela checagem de coerência da IA.
         const check = await validateForm(mission, data);
         if (!check.valid) {
           return res.status(200).json({ ok: false, message: check.feedback || 'Complete os campos com valores reais.' });
         }
+        const zerados = ['renda_futura', 'gastos_futuros', 'prazo_meta'].filter(k => num(data[k]) === 0);
+        orcamentoResumo = {
+          meta: true, renda: rendaF, gastos: gastosF, saldo: rendaF - gastosF,
+          estouro: false, excesso: 0, zerados,
+        };
         sub.status = 'aprovado';
         sub.points = mission.points;
         sub.note = `Meta: sobrar ${brl(rendaF - gastosF)}/mês`;
@@ -526,6 +600,7 @@ export default async function handler(req, res) {
       bonus,
       levelUp: depois > antes ? levelFor(user.points) : null,
       objetivo: objetivoAvaliacao,
+      orcamento: orcamentoResumo,
       user: publicUser(user),
     });
   } catch (err) {

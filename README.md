@@ -134,6 +134,25 @@ avalia a viabilidade e devolve um feedback na hora:
   pontos, envios, aulas, prêmios e conversas. Guarde-o com cuidado (contém dados financeiros).
   Por segurança, o backup NÃO inclui os PINs; numa restauração, cada pessoa define um novo PIN.
 
+## Orçamento no vermelho e campos zerados
+
+- **O orçamento sempre é aceito, mesmo negativo.** Se os gastos passam da renda, o envio pontua
+  normalmente e o estouro vira um **destaque em vermelho** ("Estouro de R$ X por mês"), tanto ao
+  vivo enquanto a pessoa preenche quanto na tela de resumo. Reconhecer a situação é o primeiro
+  passo — penalizar quem está no vermelho seria o oposto do objetivo do programa.
+- **Zeros são respostas válidas** em qualquer campo. Quando há campos em zero, aparece um
+  **alerta amarelo** lembrando de conferir se não ficou algum valor esquecido, sem bloquear o envio.
+
+## Editar e excluir objetivos
+
+Na aba Missões, o bloco **"Meus objetivos"** lista os objetivos ativos (máx. 3) com botões de
+**Editar** e **Excluir**.
+
+- **Editar** reabre o formulário preenchido e passa pelas mesmas validações (factível, cabe no
+  orçamento, não se sobrepõe) — mas **não concede pontos de novo**, já que a missão já foi paga.
+- **Excluir** remove o objetivo e **devolve os pontos** que ele havia dado. Isso é proposital:
+  sem devolver, dava para criar e excluir objetivos repetidamente para acumular pontos.
+
 ---
 
 ## Publicação
