@@ -69,7 +69,6 @@
   /* ---------- Painel ---------- */
   .hero{ background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:22px;
     box-shadow:var(--shadow); margin-bottom:14px; }
-  .greet{ font-family:'Archivo',sans-serif; font-weight:700; font-size:16px; color:var(--blue-deep); margin-bottom:14px; }
   .hero-top{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
   .badge{ width:62px; height:62px; border-radius:50%; background:var(--orb); color:#fff; flex:0 0 auto;
     display:grid; place-items:center; font-family:'Archivo',sans-serif; font-weight:800; font-size:23px;
@@ -212,6 +211,50 @@
   .ofb-ok{ flex:0 0 auto; font-weight:600; font-size:14px; color:#fff; background:var(--orb); border:none;
     border-radius:11px; padding:12px 22px; cursor:pointer; box-shadow:0 3px 10px rgba(0,120,192,.3); }
   .ofb-ok:hover{ filter:brightness(1.05); }
+
+  .greet{ font-family:'Archivo',sans-serif; font-weight:700; font-size:16px; color:var(--blue-deep); margin-bottom:14px; display:flex; align-items:center; gap:10px; }
+  .avatar{ width:34px; height:34px; border-radius:50%; object-fit:cover; border:2px solid var(--cyan); flex:0 0 auto; }
+
+  /* Foto do perfil (upload) */
+  .fotobox{ display:flex; align-items:center; gap:12px; }
+  .fotoprev{ width:64px; height:64px; border-radius:50%; background:var(--paper); border:1px solid var(--line);
+    display:grid; place-items:center; font-size:26px; overflow:hidden; flex:0 0 auto; }
+  .fotoprev img{ width:100%; height:100%; object-fit:cover; }
+  .fotobtn{ font-size:13px; font-weight:600; color:var(--blue-deep); background:var(--surface);
+    border:1px solid var(--line); border-radius:9px; padding:9px 14px; cursor:pointer; }
+  .fotobtn:hover{ border-color:var(--cyan); }
+  .fotobtn.del{ color:#A32D2D; }
+
+  /* Lista de dívidas */
+  .dvcard{ border:1px solid var(--line); border-radius:12px; padding:13px; margin-bottom:10px; background:var(--paper); }
+  .dvhead{ display:flex; justify-content:space-between; align-items:center; font-size:12.5px; font-weight:700;
+    color:var(--blue-deep); text-transform:uppercase; letter-spacing:.04em; margin-bottom:9px; }
+  .dvdel{ background:none; border:none; color:var(--bad); font-size:12px; font-weight:600; cursor:pointer; text-transform:none; letter-spacing:0; }
+  .dvcard input[type=text], .dvcard input[type=number]{ margin-bottom:8px; }
+  .dvrow{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .dvtaxa{ display:flex; align-items:center; gap:12px; }
+  .dvtaxa input[type=number]{ flex:1; margin-bottom:0; }
+  .dvns{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); font-weight:400; white-space:nowrap; }
+  .dvns input{ width:auto; }
+
+  /* Registrato */
+  .registrato{ margin-top:16px; background:#EAF4FB; border:1px solid #CFE6F5; border-radius:12px; padding:14px 16px; }
+  .rg-t{ font-family:'Archivo',sans-serif; font-weight:700; font-size:14px; color:var(--blue-deep); margin-bottom:6px; }
+  .rg-d{ font-size:13px; color:var(--blue-dark); line-height:1.5; }
+  .rg-steps{ margin:8px 0 10px; padding-left:20px; font-size:13px; color:var(--blue-dark); line-height:1.6; }
+  .rg-link{ display:inline-block; font-weight:600; font-size:13.5px; color:#fff; background:var(--blue);
+    border-radius:9px; padding:9px 16px; text-decoration:none; }
+  .rg-link:hover{ background:var(--blue-deep); }
+
+  /* Plano de quitação */
+  .plano{ background:linear-gradient(120deg,#E9F6F0,#DBF0E6); border:1px solid #B5E0CC; border-radius:14px;
+    padding:16px 18px; margin-bottom:14px; }
+  .plano-h{ font-family:'Archivo',sans-serif; font-weight:800; font-size:15px; color:#0F6E56; margin-bottom:8px; }
+  .plano-b{ font-size:13.5px; color:var(--ink); line-height:1.65; }
+  .plano-f{ font-size:11.5px; color:var(--muted); margin-top:10px; }
+
+  .alerta.ok{ background:#E1F5EE; border:1px solid #B5E0CC; color:#0F6E56; }
+  .modnote{ text-align:center; font-size:12.5px; color:var(--muted); padding:14px; }
 
   .nav{ display:flex; gap:8px; margin-bottom:16px; }
   .nav button{ flex:1; padding:11px; border:1px solid var(--line); background:var(--surface); border-radius:11px;
@@ -517,7 +560,7 @@
 <script>
 (function(){
   const $ = id => document.getElementById(id);
-  let token = null, state = null, chatHist = [], busy = false, mode = 'login', current = null, fileData = null, fileName = '', pendingLevelUp = null, lastObjData = null;
+  let token = null, state = null, chatHist = [], busy = false, mode = 'login', current = null, fileData = null, fileName = '', pendingLevelUp = null, lastObjData = null, perfilFoto = null, dvItems = [];
 
   const OPTS = ['Tenho uma dúvida sobre dinheiro','Quero organizar minhas finanças','Estou com dívidas',
                 'Quero começar a guardar dinheiro','Quero fazer um planejamento','Quero comparar duas opções'];
@@ -602,7 +645,8 @@
   function renderHero(){
     const u = state.user, L = u.level;
     const primeiro = (u.nome||'').trim().split(/\s+/)[0] || '';
-    $('hGreet').textContent = primeiro ? ('Bom te ver, ' + primeiro + ' 👋') : 'Bom te ver! 👋';
+    $('hGreet').innerHTML = (state.foto ? '<img class="avatar" src="'+state.foto+'" alt="">' : '') +
+      (primeiro ? ('Bom te ver, ' + esc(primeiro) + ' 👋') : 'Bom te ver! 👋');
     $('hBadge').textContent = L.level;
     $('hLevel').textContent = 'Nível ' + L.level + ' — ' + L.name;
     $('hPts').textContent = L.points + ' pontos';
@@ -860,6 +904,29 @@
   /* ---- Resumo do orçamento, com destaque de estouro e zeros ---- */
   function showBudgetFeedback(o, earned, levelUp){
     const brl = n => 'R$ ' + Number(n||0).toLocaleString('pt-BR');
+
+    // Caso especial: meta de reserva (recomendação 3x)
+    if(o.reserva){
+      $('ofbHead').className = 'ofb-head ' + (o.abaixo ? 'apertado' : 'viavel');
+      $('ofbIc').textContent = '🛟';
+      $('ofbStatus').textContent = o.abaixo ? 'Meta registrada — dá pra mirar mais alto' : 'Meta de reserva definida!';
+      $('ofbEarn').textContent = '+' + earned + ' pontos';
+      $('ofbClass').style.display = 'none';
+      $('ofbText').textContent = o.abaixo
+        ? 'Você registrou sua meta e já ganhou os pontos. Só um lembrete: o ideal é a reserva cobrir 3 meses das suas despesas — foi por isso que sugerimos um valor maior. Vá no seu ritmo até lá.'
+        : 'Meta no ponto! Uma reserva de 3 meses de despesas te protege da maioria dos perrengues. Agora é separar todo mês.';
+      let num = '';
+      if(o.recomendado != null){
+        num = '<b>Sua meta:</b> ' + brl(o.meta) + ' &nbsp;·&nbsp; <b>Recomendado (3x despesas):</b> ' + brl(o.recomendado);
+        if(o.abaixo) num += '<div class="alerta warn">💡 Faltam ' + brl(o.recomendado - o.meta) + ' para chegar ao ideal. Sem pressa — o importante é começar.</div>';
+      }
+      $('ofbNum').innerHTML = num; $('ofbNum').style.display = num?'block':'none';
+      $('ofbAdjust').style.display = 'none'; $('ofbOk').textContent = 'Entendi';
+      pendingLevelUp = levelUp || null;
+      $('objFb').classList.add('on');
+      return;
+    }
+
     const meta = !!o.meta;
     $('ofbHead').className = 'ofb-head ' + (o.estouro ? 'orcamento' : 'viavel');
     $('ofbIc').textContent = o.estouro ? '🚨' : (meta ? '🎯' : '📊');
@@ -977,8 +1044,21 @@
           '<div class="d">'+esc(m.desc)+extra+'</div></div>'+
           '<span class="m-pts">+'+m.points+'</span>'+right+'</div>';
       }).join('');
-      return '<div class="track"><div class="track-head"><h3>'+esc(t.name)+'</h3><p>'+esc(t.intro)+'</p></div>'+rows+'</div>';
+      let head = '<div class="track-head"><h3>'+esc(t.name)+'</h3><p>'+esc(t.intro)+'</p></div>';
+      // Plano de quitação publicado pelo gestor aparece no topo do módulo Dívidas.
+      let extra0 = '';
+      if(t.id === 'dividas' && state.planoQuitacao && state.planoQuitacao.texto){
+        extra0 = '<div class="plano"><div class="plano-h">🎯 Seu plano de quitação</div>'+
+          '<div class="plano-b">'+esc(state.planoQuitacao.texto).replace(/\n/g,'<br>')+'</div>'+
+          '<div class="plano-f">Montado pelo gestor do programa em '+ new Date(state.planoQuitacao.publicadoEm).toLocaleDateString('pt-BR') +'</div></div>';
+      }
+      return '<div class="track">'+head+extra0+rows+'</div>';
     }).join('');
+    // Aviso sobre módulos que o gestor ainda pode liberar
+    const totalTrilhas = 7;
+    if((state.tracks||[]).filter(t=>t.id!=='especiais').length < totalTrilhas){
+      $('missList').innerHTML += '<div class="modnote">🔒 Outros módulos (como Dívidas, Reserva ou Objetivos) podem ser liberados pelo gestor conforme sua necessidade.</div>';
+    }
     document.querySelectorAll('[data-m]').forEach(b=> b.onclick = ()=> openMission(b.dataset.m));
   }
 
@@ -1058,6 +1138,52 @@
     };
   });
 
+  /* ---------- foto do perfil ---------- */
+  function handlePhoto(file){
+    if(!file) return;
+    const r = new FileReader();
+    r.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 320;
+        let { width:w, height:h } = img;
+        const k = Math.min(1, max/Math.max(w,h)); w = Math.round(w*k); h = Math.round(h*k);
+        const c = document.createElement('canvas'); c.width=w; c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        perfilFoto = c.toDataURL('image/jpeg', 0.7);
+        $('fotoPrev').innerHTML = '<img src="'+perfilFoto+'" alt="">';
+        $('fotoDel').style.display = 'inline-block';
+      };
+      img.src = r.result;
+    };
+    r.readAsDataURL(file);
+  }
+
+  /* ---------- lista de dívidas ---------- */
+  function renderDvList(){
+    $('dvList').innerHTML = dvItems.map((d,i)=>
+      '<div class="dvcard"><div class="dvhead"><span>Dívida '+(i+1)+'</span>'+
+      (dvItems.length>1?'<button type="button" class="dvdel" data-i="'+i+'">remover</button>':'')+'</div>'+
+      '<input type="text" class="dvf" data-i="'+i+'" data-k="credor" placeholder="Com quem? (banco, loja, pessoa)" value="'+esc(d.credor||'')+'">'+
+      '<div class="dvrow">'+
+        '<input type="number" class="dvf" data-i="'+i+'" data-k="valor" placeholder="Valor total (R$)" value="'+esc(String(d.valor||''))+'">'+
+        '<input type="number" class="dvf" data-i="'+i+'" data-k="parcela" placeholder="Parcela/mês (R$)" value="'+esc(String(d.parcela||''))+'">'+
+      '</div>'+
+      '<div class="dvtaxa">'+
+        '<input type="number" step="0.1" class="dvf" data-i="'+i+'" data-k="taxa" placeholder="Juros ao mês (%)" value="'+esc(String(d.taxa||''))+'"'+(d.naoSabe?' disabled':'')+'>'+
+        '<label class="dvns"><input type="checkbox" class="dvf" data-i="'+i+'" data-k="naoSabe" '+(d.naoSabe?'checked':'')+'> não sei</label>'+
+      '</div></div>').join('');
+    document.querySelectorAll('.dvf').forEach(el=>{
+      const ev = el.type==='checkbox' ? 'change' : 'input';
+      el.addEventListener(ev, e=>{
+        const i = +el.dataset.i, k = el.dataset.k;
+        dvItems[i][k] = el.type==='checkbox' ? el.checked : el.value;
+        if(k==='naoSabe') renderDvList();
+      });
+    });
+    document.querySelectorAll('.dvdel').forEach(b=> b.onclick = ()=>{ dvItems.splice(+b.dataset.i,1); renderDvList(); });
+  }
+
   /* ---------- modal de missão ---------- */
   function openMission(id){
     curLesson = null; editandoObj = null;
@@ -1080,18 +1206,49 @@
         '<div class="dd">A imagem é reduzida antes do envio. Máx. 1 arquivo.</div>'+
         '<div id="prev"></div></div>'+
         '<input type="file" id="file" accept="image/*,application/pdf" style="display:none">';
+    } else if(mission.type === 'perfil'){
+      html = (mission.fields||[]).map(f=>{
+        let input;
+        if(f.type==='select') input = '<select id="f_'+f.id+'">'+
+          f.options.map(o=>'<option>'+esc(o)+'</option>').join('')+'</select>';
+        else if(f.type==='date') input = '<input type="date" id="f_'+f.id+'">';
+        else input = '<input type="text" id="f_'+f.id+'">';
+        return '<div class="row"><label for="f_'+f.id+'">'+esc(f.label)+'</label>'+input+'</div>';
+      }).join('');
+      html += '<div class="row"><label>Foto (opcional)</label>'+
+        '<div class="fotobox" id="fotoBox"><div class="fotoprev" id="fotoPrev">📷</div>'+
+        '<button type="button" class="fotobtn" id="fotoBtn">Escolher foto</button>'+
+        '<button type="button" class="fotobtn del" id="fotoDel" style="display:none">Remover</button></div>'+
+        '<input type="file" id="fotoFile" accept="image/*" style="display:none"></div>';
+    } else if(mission.type === 'dividas'){
+      html = '<div class="hint">Adicione cada dívida separadamente. A taxa de juros ajuda o gestor a montar seu plano — se não souber, marque "não sei".</div>'+
+        '<div id="dvList"></div>'+
+        '<button type="button" class="rowbtn" id="dvAdd" style="margin-top:8px">+ Adicionar dívida</button>'+
+        '<div class="registrato">'+
+          '<div class="rg-t">🔎 Não lembra de todas? Consulte o Registrato (Banco Central)</div>'+
+          '<div class="rg-d">O Registrato mostra todas as dívidas que estão no seu nome no sistema financeiro. É gratuito:</div>'+
+          '<ol class="rg-steps"><li>Acesse o site do Registrato e entre com sua conta gov.br.</li>'+
+          '<li>Peça o relatório "Dívidas — SCR" (empréstimos e financiamentos).</li>'+
+          '<li>Use o relatório para preencher a lista acima com valores e credores.</li></ol>'+
+          '<a class="rg-link" href="https://registrato.bcb.gov.br" target="_blank" rel="noopener">Abrir o Registrato ↗</a>'+
+        '</div>';
     } else {
       html = (mission.fields||[]).map(f=>{
         let input;
         if(f.type==='textarea') input = '<textarea id="f_'+f.id+'"></textarea>';
         else if(f.type==='select') input = '<select id="f_'+f.id+'"><option value="">Selecione…</option>'+
           f.options.map(o=>'<option>'+esc(o)+'</option>').join('')+'</select>';
+        else if(f.type==='date') input = '<input type="date" id="f_'+f.id+'">';
         else input = '<input type="'+(f.type==='number'?'number':'text')+'" id="f_'+f.id+'">';
         return '<div class="row"><label for="f_'+f.id+'">'+esc(f.label)+'</label>'+input+'</div>';
       }).join('');
       // Orçamento: mostra entra/sai/saldo ao vivo, destacando o estouro.
       if(mission.id === 'orc_montar'){
         html += '<div class="livebox" id="liveBox"></div>';
+      }
+      // Reserva: recomenda 3x as despesas do orçamento.
+      if(mission.id === 'res_meta'){
+        html += '<div class="livebox" id="resBox"></div>';
       }
     }
     $('mBody').innerHTML = html;
@@ -1123,6 +1280,51 @@
       };
       ['renda',...cats].forEach(k=>{ const el=$('f_'+k); if(el) el.addEventListener('input', upd); });
       upd();
+    }
+
+    // Reserva: calcula e recomenda 3x as despesas do orçamento
+    if(mission.id === 'res_meta'){
+      const orc = (state.submissions||[]).find(s=>s.missionId==='orc_montar' && s.status==='aprovado');
+      const nn = v => { const x = parseFloat(String(v||'').replace(',','.')); return isFinite(x)?x:0; };
+      let recomendado = 0;
+      if(orc && orc.data){
+        const g = ['moradia','contas','alimentacao','transporte','parcelas','outros'].reduce((a,k)=>a+nn(orc.data[k]),0);
+        recomendado = g * 3;
+      }
+      const brl = n => 'R$ ' + Number(n||0).toLocaleString('pt-BR');
+      if(recomendado > 0){
+        const meta = $('f_meta'); if(meta && !meta.value) meta.value = Math.round(recomendado);
+        const upd = ()=>{
+          const v = nn(($('f_meta')||{}).value);
+          let h = '<div class="lb-row"><span>Recomendado (3x suas despesas)</span><b>'+brl(recomendado)+'</b></div>';
+          if(v>0 && v < recomendado) h += '<div class="alerta warn">💡 Sua meta está abaixo do recomendado. Pode seguir, mas o ideal é chegar a '+brl(recomendado)+' — 3 meses de despesas cobrem a maioria dos perrengues.</div>';
+          else if(v>=recomendado) h += '<div class="alerta ok">✅ Meta no ponto! Isso te dá um bom colchão de segurança.</div>';
+          $('resBox').innerHTML = h;
+        };
+        const m=$('f_meta'); if(m) m.addEventListener('input', upd);
+        upd();
+      } else {
+        $('resBox').innerHTML = '<div class="alerta warn">Faça o orçamento primeiro para calcularmos sua reserva ideal.</div>';
+      }
+    }
+
+    // Perfil: foto opcional
+    if(mission.type === 'perfil'){
+      if(state.perfil){ ['nascimento','casado','filhos'].forEach(k=>{ const el=$('f_'+k); if(el && state.perfil[k]!=null){ el.value = (k==='casado'||k==='filhos') ? (state.perfil[k]?'Sim':'Não') : state.perfil[k]; } }); }
+      perfilFoto = state.foto || null;
+      if(state.foto){ $('fotoPrev').innerHTML = '<img src="'+state.foto+'" alt="">'; $('fotoDel').style.display='inline-block'; }
+      $('fotoBtn').onclick = ()=> $('fotoFile').click();
+      $('fotoDel').onclick = ()=>{ perfilFoto = null; $('fotoPrev').innerHTML='📷'; $('fotoDel').style.display='none'; $('fotoFile').value=''; };
+      $('fotoFile').onchange = e => handlePhoto(e.target.files[0]);
+    }
+
+    // Dívidas: lista dinâmica
+    if(mission.type === 'dividas'){
+      dvItems = (state.dividas && state.dividas.length)
+        ? state.dividas.map(d=>({ credor:d.credor||'', valor:d.valor||'', parcela:d.parcela||'', taxa:d.taxa==null?'':d.taxa, naoSabe:!!d.naoSabe }))
+        : [{ credor:'', valor:'', parcela:'', taxa:'', naoSabe:false }];
+      renderDvList();
+      $('dvAdd').onclick = ()=>{ if(dvItems.length<20){ dvItems.push({credor:'',valor:'',parcela:'',taxa:'',naoSabe:false}); renderDvList(); } };
     }
 
     if(mission.type === 'proof'){
@@ -1177,6 +1379,17 @@
     } else if(m.type === 'proof'){
       if(!fileData){ toast('Escolha o arquivo do comprovante.'); return; }
       file = fileData;
+    } else if(m.type === 'perfil'){
+      data.nascimento = ($('f_nascimento')||{}).value || '';
+      data.casado = ($('f_casado')||{}).value || 'Não';
+      data.filhos = ($('f_filhos')||{}).value || 'Não';
+      if(!data.nascimento){ toast('Informe sua data de nascimento.'); return; }
+    } else if(m.type === 'dividas'){
+      const limpas = dvItems
+        .map(d=>({ credor:(d.credor||'').trim(), valor:d.valor, parcela:d.parcela, taxa:d.taxa, naoSabe:!!d.naoSabe }))
+        .filter(d=> d.credor || d.valor || d.parcela);
+      if(!limpas.length){ toast('Adicione ao menos uma dívida com o nome do credor.'); return; }
+      data.dividas = limpas;
     } else {
       for(const f of (m.fields||[])){
         const el = $('f_'+f.id);
@@ -1190,12 +1403,14 @@
       const payload = editandoObj
         ? { action:'objEditar', id: editandoObj, data }
         : { missionId: m.id, data, file, fileName };
+      if(m.type === 'perfil' && perfilFoto) payload.foto = perfilFoto;
       const j = await api('/api/missions', { method:'POST', body: JSON.stringify(payload) });
 
       if(j.ok === false){ toast(j.message || 'Revise o preenchimento.'); return; }
 
       $('veil').classList.remove('on');
       if(j.pending){ toast(j.message); }
+      else if(j.pontuou === false && j.message){ toast(j.message); }
       else if(j.objetivo){
         const editou = !!editandoObj;
         showObjectiveFeedback(j.objetivo, editou ? 0 : j.earned, editou ? null : (j.levelUp || null), editou);
@@ -1210,6 +1425,7 @@
         toast(msg);
         if(j.levelUp) setTimeout(()=> celebrate(j.levelUp), 700);
       }
+      if(j.moduleBonus){ setTimeout(()=> toast('🏅 Módulo '+j.moduleBonus.modulo+' completo! +'+j.moduleBonus.pontos+' pts de bônus'), 1400); }
       editandoObj = null;
       state = await api('/api/missions');
       renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes();

@@ -153,6 +153,26 @@ Na aba Missões, o bloco **"Meus objetivos"** lista os objetivos ativos (máx. 3
 - **Excluir** remove o objetivo e **devolve os pontos** que ele havia dado. Isso é proposital:
   sem devolver, dava para criar e excluir objetivos repetidamente para acumular pontos.
 
+## Cadastro inicial, módulos e mais (lote de 7 ajustes)
+
+- **Cadastro inicial:** a primeira missão do app pede nascimento, se é casado(a), se tem filhos
+  e uma **foto opcional** (vira avatar na saudação). Vale pontos.
+- **Módulos destraváveis:** cada trilha é um módulo. **Diagnóstico** e **Orçamento** ficam
+  sempre abertos; os demais o gestor libera/trava por pessoa. O **diagnóstico inicial sugere**
+  quais módulos a pessoa precisa (com base em perguntas sobre dívidas, cartão, reserva e
+  objetivos) e o gestor **aprova** as sugestões (de uma vez ou uma a uma). Ao concluir um módulo,
+  a pessoa ganha um **bônus** cujo valor o gestor define na aba **Módulos**.
+- **Registrato (BACEN):** na tela de dívidas há o link oficial do Registrato + 3 passos de como usar.
+- **Frases:** cada módulo tem uma frase motivacional/bem-humorada no topo.
+- **Dívidas em lista:** cada dívida é cadastrada com credor, valor, parcela e **taxa de juros**
+  (com opção "não sei" — dívidas sem taxa não pontuam).
+- **Plano de quitação:** na ficha do colaborador, o gestor puxa as dívidas cadastradas, gera um
+  **rascunho com a IA** (ataca a maior taxa primeiro), ajusta e **publica**. O colaborador vê o
+  plano no topo do módulo Dívidas.
+- **Reserva 3x:** a meta de reserva recomenda **3× as despesas mensais** (puxadas do orçamento).
+  É recomendação forte: pré-preenche o valor e avisa se ficar abaixo, mas não trava. O orçamento
+  é **pré-requisito** da reserva.
+
 ---
 
 ## Publicação

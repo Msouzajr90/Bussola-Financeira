@@ -20,10 +20,13 @@ import {
   getPrizes, setPrizes, dbReady,
   listCustomMissions, saveCustomMission, deleteCustomMission,
   listLessons, saveLesson, deleteLesson,
-  resetPin,
+  resetPin, getModuleConfig, setModuleConfig,
 } from '../lib/store.js';
-import { levelFor, findMission, LEVELS, TRACKS } from '../lib/missions.js';
+import { levelFor, findMission, LEVELS, TRACKS, BASE_MODULES, DEFAULT_MODULE_POINTS } from '../lib/missions.js';
 import { youtubeId } from '../lib/youtube.js';
+
+const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+function nnum(v) { const n = parseFloat(String(v == null ? '' : v).replace(/\./g, '').replace(',', '.')); return isFinite(n) ? n : 0; }
 
 function authorized(req) {
   const pass = process.env.ADMIN_PASSWORD;
@@ -35,6 +38,58 @@ function authorized(req) {
 // Descobre o tipo do arquivo pelo início do dataURL guardado na submissão.
 function mimeOf(sub) {
   return sub.fileMime || 'image/jpeg';
+}
+
+// Rascunho de plano de quitação (método avalanche) para o gestor ajustar.
+async function sugerirPlano(user, dividasOrdenadas) {
+  const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR');
+  const linhas = dividasOrdenadas.map((d, i) =>
+    `${i + 1}. ${d.credor || 'Dívida'} — total ${brl(d.valor)}, parcela ${brl(d.parcela)}/mês, ` +
+    (d.naoSabe || d.taxa == null ? 'taxa não informada' : `taxa ${d.taxa}% ao mês`)).join('\n');
+  const totalParcelas = dividasOrdenadas.reduce((a, d) => a + (d.parcela || 0), 0);
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  const fallback =
+`Plano de quitação sugerido (método: juros mais alto primeiro)
+
+Dívidas, da mais cara para a mais barata:
+${linhas}
+
+Estratégia:
+1. Continue pagando o mínimo de todas para não atrasar.
+2. Todo dinheiro extra vai para a 1ª da lista (maior juros), até quitá-la.
+3. Quitada a 1ª, jogue o valor que sobrou na 2ª — e assim por diante (efeito bola de neve).
+4. Comprometimento atual em parcelas: ${brl(totalParcelas)}/mês.
+
+Observação: revise e ajuste conforme a realidade do colaborador antes de publicar.`;
+
+  if (!apiKey) return fallback;
+
+  const instrucao = `Você ajuda um gestor de um programa de saúde financeira a rascunhar um plano de quitação de dívidas para um colaborador brasileiro.
+
+Dívidas (já ordenadas da maior para a menor taxa de juros):
+${linhas}
+
+Escreva um plano claro, prático e acolhedor, em português simples, com:
+- A ordem recomendada de ataque às dívidas (priorize a maior taxa de juros; quando a taxa não foi informada, sugira confirmar a taxa).
+- A lógica do efeito bola de neve (quita uma, joga o valor na próxima).
+- Um lembrete de pagar o mínimo de todas para não atrasar.
+- Tom que encoraja, sem julgar. Não invente valores que não foram dados. Não recomende empréstimos novos nem produtos financeiros específicos.
+
+Escreva o plano direto (sem saudação), no máximo 220 palavras. É um rascunho que o gestor vai revisar.`;
+
+  try {
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: MODEL, temperature: 0.5, messages: [{ role: 'user', content: instrucao }] }),
+    });
+    if (!r.ok) return fallback;
+    const j = await r.json();
+    return (j?.choices?.[0]?.message?.content || '').trim() || fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export default async function handler(req, res) {
@@ -197,8 +252,12 @@ export default async function handler(req, res) {
             streak: u.streak || 0, lastCheckin: u.lastCheckin || null,
             createdAt: u.createdAt, rhValidado: !!u.rhValidado,
             missoesFeitas: feitas, totalMissoes,
+            perfil: u.perfil || null, foto: u.foto || null,
+            modules: u.modules || {}, moduleSug: u.moduleSug || [],
+            dividas: u.dividas || [], planoQuitacao: u.planoQuitacao || null,
           },
           trilhas,
+          modulos: TRACKS.map(t => ({ id: t.id, name: t.name, base: !!t.base })),
         });
       }
 
@@ -240,6 +299,16 @@ export default async function handler(req, res) {
 
       if (action === 'prizes') {
         return res.status(200).json({ prizes: await getPrizes() });
+      }
+
+      /* ---------- Config de módulos (pontos de bônus por módulo) ---------- */
+      if (action === 'moduleConfig') {
+        const cfg = await getModuleConfig();
+        const modulos = TRACKS.map(t => ({
+          id: t.id, name: t.name, base: !!t.base,
+          pontos: cfg[t.id] != null ? cfg[t.id] : (DEFAULT_MODULE_POINTS[t.id] || 0),
+        }));
+        return res.status(200).json({ modulos });
       }
 
       /* ---------- Backup completo (JSON) ---------- */
@@ -434,6 +503,71 @@ export default async function handler(req, res) {
         const u = await resetPin(body.matricula);
         if (!u) return res.status(404).json({ error: 'Colaborador não encontrado.' });
         return res.status(200).json({ ok: true });
+      }
+
+      /* ---------- Liberar / travar um módulo para um colaborador ---------- */
+      if (action === 'moduleToggle') {
+        const u = await getUser(body.matricula);
+        if (!u) return res.status(404).json({ error: 'Colaborador não encontrado.' });
+        if (BASE_MODULES.includes(body.moduleId)) {
+          return res.status(400).json({ error: 'Este módulo é base e está sempre liberado.' });
+        }
+        u.modules = { ...(u.modules || {}), [body.moduleId]: !!body.on };
+        // Ao liberar/tratar, sai da lista de sugestões pendentes.
+        u.moduleSug = (u.moduleSug || []).filter(id => id !== body.moduleId);
+        await saveUser(u);
+        return res.status(200).json({ ok: true, modules: u.modules, moduleSug: u.moduleSug });
+      }
+
+      /* ---------- Aprovar todas as sugestões do diagnóstico ---------- */
+      if (action === 'moduleApprove') {
+        const u = await getUser(body.matricula);
+        if (!u) return res.status(404).json({ error: 'Colaborador não encontrado.' });
+        const sug = u.moduleSug || [];
+        const mods = { ...(u.modules || {}) };
+        for (const id of sug) if (!BASE_MODULES.includes(id)) mods[id] = true;
+        u.modules = mods;
+        u.moduleSug = [];
+        await saveUser(u);
+        return res.status(200).json({ ok: true, modules: u.modules });
+      }
+
+      /* ---------- Salvar pontuação dos módulos ---------- */
+      if (action === 'moduleConfig') {
+        const cfg = {};
+        for (const t of TRACKS) {
+          const v = body.pontos && body.pontos[t.id];
+          if (v != null) cfg[t.id] = Math.max(0, Math.min(1000, parseInt(v, 10) || 0));
+        }
+        await setModuleConfig(cfg);
+        return res.status(200).json({ ok: true, config: cfg });
+      }
+
+      /* ---------- Plano de quitação: sugestão da IA ---------- */
+      if (action === 'planoSugerir') {
+        const u = await getUser(body.matricula);
+        if (!u) return res.status(404).json({ error: 'Colaborador não encontrado.' });
+        const dividas = u.dividas || [];
+        if (!dividas.length) return res.status(200).json({ ok: true, texto: '', aviso: 'Este colaborador ainda não cadastrou dívidas.' });
+
+        // Ordena por maior taxa (método avalanche) — quem sabe a taxa primeiro.
+        const ordenadas = [...dividas].sort((a, b) => (b.taxa || -1) - (a.taxa || -1));
+        const texto = await sugerirPlano(u, ordenadas);
+        return res.status(200).json({ ok: true, texto, dividas: ordenadas });
+      }
+
+      /* ---------- Plano de quitação: publicar ---------- */
+      if (action === 'planoPublicar') {
+        const u = await getUser(body.matricula);
+        if (!u) return res.status(404).json({ error: 'Colaborador não encontrado.' });
+        const texto = String(body.texto || '').trim();
+        if (!texto) {
+          u.planoQuitacao = null;
+        } else {
+          u.planoQuitacao = { texto: texto.slice(0, 4000), publicadoEm: Date.now() };
+        }
+        await saveUser(u);
+        return res.status(200).json({ ok: true, planoQuitacao: u.planoQuitacao });
       }
 
       if (action === 'rh') {

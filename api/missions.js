@@ -12,9 +12,13 @@
 import crypto from 'node:crypto';
 import {
   sessionUser, saveUser, saveSubmission, listSubmissions,
-  saveFile, getPrizes, customFor, countUsers, getSubmission, deleteSubmission, dbReady,
+  saveFile, getPrizes, customFor, countUsers, getSubmission, deleteSubmission,
+  getModuleConfig, dbReady,
 } from '../lib/store.js';
-import { publicCatalog, findMission, levelFor, STREAK_BONUS, publicUser } from '../lib/missions.js';
+import {
+  publicCatalog, catalogFor, findMission, levelFor, STREAK_BONUS, publicUser,
+  TRACKS, BASE_MODULES, DEFAULT_MODULE_POINTS, moduleUnlocked,
+} from '../lib/missions.js';
 
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
@@ -331,14 +335,20 @@ export default async function handler(req, res) {
 
   /* ---------------- Estado ---------------- */
   if (req.method === 'GET') {
-    const [subs, prizes, custom, comunidade] = await Promise.all([
+    const [subs, prizes, custom, comunidade, modCfg] = await Promise.all([
       listSubmissions({ matricula: user.matricula, limit: 150 }),
       getPrizes(),
       customFor(user.matricula),
       countUsers(),
+      getModuleConfig(),
     ]);
 
-    const tracks = publicCatalog();
+    // Catálogo só com os módulos liberados para esta pessoa.
+    const tracks = catalogFor(user);
+
+    // Pontos de bônus por módulo (config do gestor, com padrão).
+    const modulePoints = {};
+    for (const t of TRACKS) modulePoints[t.id] = modCfg[t.id] != null ? modCfg[t.id] : (DEFAULT_MODULE_POINTS[t.id] || 0);
 
     // Missões criadas pelo gestor especialmente para este colaborador
     if (custom.length) {
@@ -356,6 +366,14 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       user: publicUser(user),
+      perfil: user.perfil || null,
+      foto: user.foto || null,
+      modules: user.modules || {},
+      baseModules: BASE_MODULES,
+      modulePoints,
+      moduleBonus: user.moduleBonus || {},
+      dividas: user.dividas || [],
+      planoQuitacao: user.planoQuitacao || null,
       tracks,
       prizes,
       comunidade,
@@ -424,9 +442,25 @@ export default async function handler(req, res) {
     }
     if (!mission) return res.status(400).json({ error: 'Missão não encontrada ou não atribuída a você.' });
     const isCustom = !found;
+    const trackId = found ? found.track.id : 'especiais';
+
+    // Trava de módulo: só deixa enviar missão de módulo liberado.
+    if (found && !moduleUnlocked(trackId, user)) {
+      return res.status(403).json({ error: 'Este módulo ainda não foi liberado para você.' });
+    }
+
     const done = user.done || {};
     if (done[mission.id] && !mission.repeatable) {
       return res.status(409).json({ error: 'Você já concluiu esta missão.' });
+    }
+
+    // Pré-requisito (ex.: reserva exige o orçamento montado).
+    if (mission.requires && !done[mission.requires]) {
+      const req0 = findMission(mission.requires);
+      return res.status(200).json({
+        ok: false,
+        message: `Antes desta, conclua "${req0 ? req0.mission.title : 'a missão anterior'}". Precisamos dela para calcular certo.`,
+      });
     }
 
     const data = body.data || {};
@@ -445,6 +479,56 @@ export default async function handler(req, res) {
       createdAt: Date.now(),
       note: '',
     };
+
+    /* --- PERFIL: cadastro inicial (dados + foto opcional) --- */
+    if (mission.type === 'perfil') {
+      const nasc = String(data.nascimento || '').trim();
+      if (!nasc) return res.status(200).json({ ok: false, message: 'Informe sua data de nascimento.' });
+      user.perfil = {
+        nascimento: nasc,
+        casado: String(data.casado || 'Não') === 'Sim',
+        filhos: String(data.filhos || 'Não') === 'Sim',
+      };
+      // Foto opcional (base64 já comprimida no navegador)
+      if (typeof body.foto === 'string' && body.foto.startsWith('data:image')) {
+        user.foto = body.foto.slice(0, 400000); // guarda pequena
+      }
+      sub.status = 'aprovado';
+      sub.points = mission.points;
+      sub.data = { nascimento: nasc, casado: user.perfil.casado ? 'Sim' : 'Não', filhos: user.perfil.filhos ? 'Sim' : 'Não', foto: user.foto ? 'sim' : 'não' };
+    }
+
+    /* --- DÍVIDAS: cadastro em lista, com taxa por dívida --- */
+    if (mission.type === 'dividas') {
+      const lista = Array.isArray(data.dividas) ? data.dividas : [];
+      if (!lista.length) return res.status(200).json({ ok: false, message: 'Adicione ao menos uma dívida (ou registre que não tem dívidas).' });
+
+      const norm = lista.slice(0, 20).map(d => ({
+        id: 'dv_' + crypto.randomUUID().slice(0, 8),
+        credor: String(d.credor || '').slice(0, 80),
+        valor: num(d.valor),
+        parcela: num(d.parcela),
+        naoSabe: !!d.naoSabe,
+        taxa: d.naoSabe ? null : num(d.taxa),
+      }));
+      user.dividas = norm;
+
+      // Pontua só se ao menos uma dívida tiver a taxa informada.
+      const comTaxa = norm.some(d => !d.naoSabe && d.taxa > 0);
+      sub.data = { total: norm.length, comTaxa: norm.filter(d => !d.naoSabe).length };
+      if (!comTaxa) {
+        // Salva as dívidas, mas ainda não pontua.
+        await saveUser(user);
+        return res.status(200).json({
+          ok: true, pontuou: false, earned: 0,
+          message: 'Dívidas salvas! Para pontuar, informe a taxa de juros de pelo menos uma delas. Não sabe? Ela aparece na fatura ou no app do banco.',
+          user: publicUser(user),
+        });
+      }
+      sub.status = 'aprovado';
+      sub.points = mission.points;
+      sub.note = `${norm.length} dívida(s) mapeada(s).`;
+    }
 
     /* --- QUIZ: correção automática --- */
     if (mission.type === 'quiz') {
@@ -538,6 +622,35 @@ export default async function handler(req, res) {
         }
         sub.status = 'aprovado';
         sub.points = mission.points;
+
+        // Diagnóstico sugere quais módulos a pessoa precisa (o gestor valida depois).
+        if (mission.id === 'diag_inicial') {
+          const sug = new Set(user.moduleSug || []);
+          if (String(data.tem_dividas) === 'Sim') sug.add('dividas');
+          if (String(data.usa_cartao) === 'Sim') sug.add('cartao');
+          if (String(data.tem_reserva) === 'Não') sug.add('reserva');
+          if (String(data.tem_objetivo) === 'Sim') sug.add('objetivos');
+          sug.add('habitos'); // hábito de guardar serve para todos
+          user.moduleSug = [...sug].filter(id => !moduleUnlocked(id, user));
+        }
+
+        // Reserva: recomenda 3x as despesas do orçamento (recomendação forte).
+        if (mission.id === 'res_meta') {
+          const subsAll = await listSubmissions({ matricula: user.matricula, limit: 200 });
+          const budget = deriveBudget(subsAll);
+          const recomendado = budget ? budget.gastos * 3 : null;
+          const meta = num(data.meta);
+          orcamentoResumo = {
+            reserva: true,
+            recomendado,
+            meta,
+            abaixo: recomendado != null && meta < recomendado,
+            gastos: budget ? budget.gastos : null,
+          };
+          sub.note = recomendado != null
+            ? `Meta R$ ${meta} (recomendado 3x = R$ ${recomendado}).`
+            : `Meta R$ ${meta}.`;
+        }
       }
     }
 
@@ -588,7 +701,24 @@ export default async function handler(req, res) {
     user.points = (user.points || 0) + ganho;
     user.done = { ...done, [mission.id]: (done[mission.id] || 0) + 1 };
 
-    const antes = levelFor(user.points - ganho).level;
+    // Bônus de módulo: ao completar todas as missões de um módulo liberado.
+    let moduleBonus = null;
+    if (found) {
+      const track = found.track;
+      const todasFeitas = track.missions.every(m => (user.done[m.id] || 0) >= 1);
+      const jaCreditado = (user.moduleBonus || {})[track.id];
+      if (todasFeitas && !jaCreditado) {
+        const modCfg = await getModuleConfig();
+        const pts = modCfg[track.id] != null ? modCfg[track.id] : (DEFAULT_MODULE_POINTS[track.id] || 0);
+        if (pts > 0) {
+          user.points += pts;
+          user.moduleBonus = { ...(user.moduleBonus || {}), [track.id]: true };
+          moduleBonus = { modulo: track.name, pontos: pts };
+        }
+      }
+    }
+
+    const antes = levelFor(user.points - ganho - (moduleBonus ? moduleBonus.pontos : 0)).level;
     const depois = levelFor(user.points).level;
 
     await saveUser(user);
@@ -598,6 +728,7 @@ export default async function handler(req, res) {
       ok: true,
       earned: ganho,
       bonus,
+      moduleBonus,
       levelUp: depois > antes ? levelFor(user.points) : null,
       objetivo: objetivoAvaliacao,
       orcamento: orcamentoResumo,

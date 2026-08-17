@@ -131,6 +131,14 @@
   /* ficha */
   .ficha-head{ display:flex; align-items:center; gap:14px; padding:18px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
   .ficha-acts{ width:100%; padding-top:14px; margin-top:4px; border-top:1px solid var(--line); display:flex; align-items:center; }
+  .perfilbox{ display:flex; align-items:center; gap:16px; }
+  .perfilfoto{ width:64px; height:64px; border-radius:50%; object-fit:cover; border:1px solid var(--line); flex:0 0 auto; }
+  .perfilfoto.none{ display:grid; place-items:center; background:var(--paper); font-size:11px; color:var(--muted); }
+  .perfildados{ font-size:14px; line-height:1.7; } .perfildados b{ color:var(--blue-deep); }
+  .modrow{ display:flex; align-items:center; gap:12px; padding:11px 0; border-bottom:1px solid var(--line); }
+  .modrow:last-child{ border-bottom:none; }
+  .modn{ flex:1; font-weight:600; font-size:14px; color:var(--ink); }
+  .modtoggle{ flex:0 0 auto; }
   .ficha-head .bg{ width:52px; height:52px; border-radius:50%; background:var(--orb); color:#fff;
     display:grid; place-items:center; font-family:'Archivo',sans-serif; font-weight:800; font-size:20px; }
   .ficha-head .nm{ font-family:'Archivo',sans-serif; font-weight:800; font-size:18px; color:var(--blue-dark); }
@@ -235,6 +243,7 @@
       <button type="button" data-v="fila">Aprovações <span class="pill" id="pill" style="display:none">0</span></button>
       <button type="button" data-v="especiais">Missões especiais</button>
       <button type="button" data-v="aulas">Aulas</button>
+      <button type="button" data-v="modulos">Módulos</button>
       <button type="button" data-v="premios">Prêmios</button>
       <span class="spacer"></span>
       <button type="button" id="csv">⬇ Exportar CSV</button>
@@ -249,6 +258,7 @@
     <div id="vFila" style="display:none"></div>
     <div id="vEspeciais" style="display:none"></div>
     <div id="vAulas" style="display:none"></div>
+    <div id="vModulos" style="display:none"></div>
     <div id="vPremios" style="display:none"></div>
   </section>
 </div>
@@ -422,6 +432,24 @@
         '<span id="rpMsg" style="font-size:12.5px;color:var(--muted);margin-left:10px"></span></div>'+
         '</div>';
 
+      // Perfil (cadastro inicial)
+      if(u.perfil || u.foto){
+        const p = u.perfil || {};
+        h += '<div class="panel"><div class="panel-head"><strong>Cadastro</strong></div><div class="pbody perfilbox">'+
+          (u.foto ? '<img class="perfilfoto" src="'+u.foto+'" alt="">' : '<div class="perfilfoto none">sem foto</div>')+
+          '<div class="perfildados">'+
+            (p.nascimento ? '<div><b>Nascimento:</b> '+esc(new Date(p.nascimento).toLocaleDateString('pt-BR'))+'</div>' : '')+
+            '<div><b>Casado(a):</b> '+(p.casado?'Sim':'Não')+'</div>'+
+            '<div><b>Filhos:</b> '+(p.filhos?'Sim':'Não')+'</div>'+
+          '</div></div></div>';
+      }
+
+      // Módulos: liberar / travar
+      h += renderModulosFicha(u, j.modulos);
+
+      // Plano de quitação (dívidas cadastradas)
+      h += renderPlanoFicha(u);
+
       // Missões cumpridas, trilha a trilha, com o que foi respondido
       h += j.trilhas.map(t =>
         '<div class="trackname">'+esc(t.name)+'</div>'+
@@ -469,10 +497,104 @@
           b.textContent = 'PIN redefinido ✓';
         }catch(err){ $('rpMsg').textContent = err.message; b.disabled=false; b.textContent='🔑 Redefinir PIN'; }
       };
+      wireModulosFicha(u);
+      wirePlanoFicha(u);
       document.querySelectorAll('[data-doc]').forEach(b=> b.onclick = ()=> viewDoc(b.dataset.doc, b));
     }catch(err){
       $('vPessoas').innerHTML = '<div class="panel"><div class="empty">'+esc(err.message)+'</div></div>';
     }
+  }
+
+  /* ---------- Módulos na ficha ---------- */
+  function renderModulosFicha(u, modulos){
+    const mods = u.modules || {};
+    const sug = u.moduleSug || [];
+    const linhas = (modulos||[]).map(md=>{
+      const liberado = md.base || !!mods[md.id];
+      const sugerido = sug.includes(md.id);
+      const tag = md.base ? '<span class="tag aprovado">sempre aberto</span>'
+                : liberado ? '<span class="tag aprovado">liberado</span>'
+                : sugerido ? '<span class="tag pendente">sugerido pelo diagnóstico</span>'
+                : '<span class="tag recusado">travado</span>';
+      const btn = md.base ? ''
+        : '<button class="rowbtn modtoggle" data-mod="'+esc(md.id)+'" data-on="'+(liberado?'0':'1')+'">'+(liberado?'Travar':'Liberar')+'</button>';
+      return '<div class="modrow"><span class="modn">'+esc(md.name)+'</span>'+tag+btn+'</div>';
+    }).join('');
+    const temSug = sug.length > 0;
+    return '<div class="panel"><div class="panel-head"><strong>Módulos deste colaborador</strong>'+
+      (temSug ? '<button class="rowbtn" id="modApprove">✓ Aprovar sugestões ('+sug.length+')</button>' : '')+
+      '</div><div class="pbody">'+
+      (temSug ? '<div class="callout">O diagnóstico sugeriu os módulos marcados. Aprove todos de uma vez ou libere um a um.</div>' : '')+
+      linhas + '</div></div>';
+  }
+  function wireModulosFicha(u){
+    document.querySelectorAll('.modtoggle').forEach(b=> b.onclick = async ()=>{
+      b.disabled = true;
+      try{
+        await api('action=moduleToggle', { method:'POST', body: JSON.stringify({ matricula:u.matricula, moduleId:b.dataset.mod, on:b.dataset.on==='1' }) });
+        openFicha(u.matricula);
+      }catch(err){ alert(err.message); b.disabled=false; }
+    });
+    const ap = $('modApprove');
+    if(ap) ap.onclick = async ()=>{
+      ap.disabled=true; ap.textContent='Aprovando…';
+      try{ await api('action=moduleApprove', { method:'POST', body: JSON.stringify({ matricula:u.matricula }) }); openFicha(u.matricula); }
+      catch(err){ alert(err.message); ap.disabled=false; }
+    };
+  }
+
+  /* ---------- Plano de quitação na ficha ---------- */
+  function renderPlanoFicha(u){
+    const brl = n => 'R$ ' + Number(n||0).toLocaleString('pt-BR');
+    const dividas = u.dividas || [];
+    let lista;
+    if(!dividas.length){
+      lista = '<div class="empty">Este colaborador ainda não cadastrou dívidas.</div>';
+    } else {
+      lista = '<table><thead><tr><th>Credor</th><th>Total</th><th>Parcela</th><th>Juros/mês</th></tr></thead><tbody>'+
+        dividas.map(d=>'<tr><td>'+esc(d.credor||'—')+'</td><td>'+brl(d.valor)+'</td><td>'+brl(d.parcela)+'</td>'+
+        '<td>'+(d.naoSabe||d.taxa==null?'<span class="tag recusado">não sabe</span>':d.taxa+'%')+'</td></tr>').join('')+
+        '</tbody></table>';
+    }
+    const plano = u.planoQuitacao;
+    return '<div class="panel"><div class="panel-head"><strong>Dívidas e plano de quitação</strong>'+
+      (dividas.length?'<button class="rowbtn" id="planoSugerir">🤖 Sugerir plano (IA)</button>':'')+
+      '</div><div class="pbody">'+ lista +
+      (dividas.length ?
+        '<div style="margin-top:14px"><label for="planoTexto">Plano de quitação (o colaborador vê quando publicado)</label>'+
+        '<textarea id="planoTexto" rows="10" placeholder="Escreva ou gere um rascunho com a IA e ajuste aqui.">'+esc(plano?plano.texto:'')+'</textarea>'+
+        '<div style="margin-top:10px;display:flex;gap:9px;align-items:center"><button class="btn" id="planoPublicar">Publicar plano</button>'+
+        (plano?'<button class="rowbtn" id="planoRemover">Despublicar</button>':'')+
+        '<span id="planoMsg" style="font-size:12.5px;color:var(--muted)"></span></div></div>'
+        : '') +
+      '</div></div>';
+  }
+  function wirePlanoFicha(u){
+    const sug = $('planoSugerir');
+    if(sug) sug.onclick = async ()=>{
+      sug.disabled=true; sug.textContent='Gerando…';
+      try{
+        const j = await api('action=planoSugerir', { method:'POST', body: JSON.stringify({ matricula:u.matricula }) });
+        if(j.texto) $('planoTexto').value = j.texto;
+        if(j.aviso) $('planoMsg').textContent = j.aviso;
+      }catch(err){ alert(err.message); }
+      finally{ sug.disabled=false; sug.textContent='🤖 Sugerir plano (IA)'; }
+    };
+    const pub = $('planoPublicar');
+    if(pub) pub.onclick = async ()=>{
+      pub.disabled=true; pub.textContent='Publicando…';
+      try{
+        await api('action=planoPublicar', { method:'POST', body: JSON.stringify({ matricula:u.matricula, texto: $('planoTexto').value }) });
+        $('planoMsg').textContent = 'Plano publicado ✓ O colaborador já pode ver.';
+      }catch(err){ $('planoMsg').textContent = err.message; }
+      finally{ pub.disabled=false; pub.textContent='Publicar plano'; }
+    };
+    const rem = $('planoRemover');
+    if(rem) rem.onclick = async ()=>{
+      if(!confirm('Despublicar o plano? O colaborador deixa de vê-lo.')) return;
+      try{ await api('action=planoPublicar', { method:'POST', body: JSON.stringify({ matricula:u.matricula, texto:'' }) }); openFicha(u.matricula); }
+      catch(err){ alert(err.message); }
+    };
   }
 
   async function loadConv(m){
@@ -725,7 +847,37 @@
     catch(err){ alert(err.message); }
   }
 
-  /* ======================= EXPORTAR CSV ======================= */
+  /* ======================= MÓDULOS (pontuação) ======================= */
+  async function renderModConfig(){
+    $('vModulos').innerHTML = '<div class="panel"><div class="empty">Carregando…</div></div>';
+    try{
+      const j = await api('action=moduleConfig');
+      const mods = j.modulos || [];
+      $('vModulos').innerHTML = '<div class="panel"><div class="panel-head"><strong>Pontuação dos módulos</strong>'+
+        '<span class="hint">Bônus ao completar cada módulo</span></div><div class="pbody">'+
+        '<div class="callout">Cada colaborador ganha estes pontos de <b>bônus</b> ao concluir todas as missões de um módulo. '+
+        'Como cada pessoa pode ter módulos diferentes liberados, use isto para equilibrar as pontuações. '+
+        'Diagnóstico e Orçamento são base (abertos para todos).</div>'+
+        '<table><thead><tr><th>Módulo</th><th>Tipo</th><th>Bônus (pontos)</th></tr></thead><tbody>'+
+        mods.map(md=>'<tr><td><b>'+esc(md.name)+'</b></td>'+
+          '<td>'+(md.base?'<span class="tag aprovado">base</span>':'liberável')+'</td>'+
+          '<td><input type="number" min="0" max="1000" class="modpts" data-mod="'+esc(md.id)+'" value="'+md.pontos+'" style="max-width:120px"></td></tr>').join('')+
+        '</tbody></table>'+
+        '<div style="margin-top:14px"><button class="btn" id="modSave">Salvar pontuação</button>'+
+        '<span id="modMsg" style="margin-left:12px;font-size:13px;color:var(--muted)"></span></div>'+
+        '</div></div>';
+      $('modSave').onclick = async ()=>{
+        const pontos = {};
+        document.querySelectorAll('.modpts').forEach(el=>{ pontos[el.dataset.mod] = el.value; });
+        const b=$('modSave'); b.disabled=true; b.textContent='Salvando…';
+        try{ await api('action=moduleConfig', { method:'POST', body: JSON.stringify({ pontos }) }); $('modMsg').textContent='Salvo ✓'; }
+        catch(err){ $('modMsg').textContent = err.message; }
+        finally{ b.disabled=false; b.textContent='Salvar pontuação'; }
+      };
+    }catch(err){ $('vModulos').innerHTML = '<div class="panel"><div class="empty">'+esc(err.message)+'</div></div>'; }
+  }
+
+  /* ======================= MÓDULOS (pontuação) FIM ======================= */
   // Usa ponto-e-vírgula (padrão do Excel em pt-BR) e BOM, para acentos não quebrarem.
   function toCSV(rows){
     const cell = v => {
@@ -964,6 +1116,8 @@
       $('vFila').style.display    = v==='fila'    ? 'block':'none';
       $('vEspeciais').style.display = v==='especiais' ? 'block':'none';
       $('vAulas').style.display   = v==='aulas'   ? 'block':'none';
+      $('vModulos').style.display = v==='modulos' ? 'block':'none';
+      if(v==='modulos') renderModConfig();
       $('vPremios').style.display = v==='premios' ? 'block':'none';
       if(v==='pessoas') renderPessoas();
     };
