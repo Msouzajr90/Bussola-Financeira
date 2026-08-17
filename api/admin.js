@@ -44,7 +44,8 @@ function mimeOf(sub) {
 async function sugerirPlano(user, dividasOrdenadas) {
   const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR');
   const linhas = dividasOrdenadas.map((d, i) =>
-    `${i + 1}. ${d.credor || 'Dívida'} — total ${brl(d.valor)}, parcela ${brl(d.parcela)}/mês, ` +
+    `${i + 1}. ${d.descricao || d.credor || 'Dívida'} — mensalidade ${brl(d.parcela)}` +
+    (d.parcelasRestantes ? `, ${d.parcelasRestantes} parcela(s) restante(s) (saldo ~${brl(d.valor)})` : '') + ', ' +
     (d.naoSabe || d.taxa == null ? 'taxa não informada' : `taxa ${d.taxa}% ao mês`)).join('\n');
   const totalParcelas = dividasOrdenadas.reduce((a, d) => a + (d.parcela || 0), 0);
 
@@ -568,6 +569,29 @@ export default async function handler(req, res) {
         }
         await saveUser(u);
         return res.status(200).json({ ok: true, planoQuitacao: u.planoQuitacao });
+      }
+
+      /* ---------- Anular / reverter uma missão realizada ---------- */
+      if (action === 'subRevert') {
+        const sub = await getSubmission(String(body.id || ''));
+        if (!sub) return res.status(404).json({ error: 'Envio não encontrado.' });
+        if (sub.status === 'anulado') return res.status(409).json({ error: 'Este envio já foi anulado.' });
+
+        const user = await getUser(sub.matricula);
+        if (user) {
+          const pts = sub.points || 0;
+          user.points = Math.max(0, (user.points || 0) - pts);
+          const d = { ...(user.done || {}) };
+          if (d[sub.missionId]) d[sub.missionId] = Math.max(0, d[sub.missionId] - 1);
+          user.done = d;
+          await saveUser(user);
+        }
+        sub.status = 'anulado';
+        sub.note = (sub.note ? sub.note + ' · ' : '') + 'Anulada pelo gestor' + (body.motivo ? ': ' + String(body.motivo).slice(0, 200) : '');
+        sub.points = 0;
+        sub.revisadoEm = Date.now();
+        await saveSubmission(sub);
+        return res.status(200).json({ ok: true });
       }
 
       if (action === 'rh') {

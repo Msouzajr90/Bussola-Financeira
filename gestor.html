@@ -100,6 +100,8 @@
   .tag.pendente{ background:var(--warn-bg); color:#854F0B; }
   .tag.aprovado{ background:var(--ok-bg); color:#0F6E56; }
   .tag.recusado{ background:var(--bad-bg); color:var(--bad); }
+  .tag.anulado{ background:#EEE; color:#777; }
+  .link.danger{ color:var(--bad); margin-left:12px; }
 
   .sub{ padding:15px 18px; border-bottom:1px solid var(--line); }
   .sub:last-child{ border-bottom:none; }
@@ -438,9 +440,9 @@
         h += '<div class="panel"><div class="panel-head"><strong>Cadastro</strong></div><div class="pbody perfilbox">'+
           (u.foto ? '<img class="perfilfoto" src="'+u.foto+'" alt="">' : '<div class="perfilfoto none">sem foto</div>')+
           '<div class="perfildados">'+
-            (p.nascimento ? '<div><b>Nascimento:</b> '+esc(new Date(p.nascimento).toLocaleDateString('pt-BR'))+'</div>' : '')+
+            (p.nascimento ? '<div><b>Nascimento:</b> '+esc(new Date(p.nascimento).toLocaleDateString('pt-BR'))+(p.idade!=null?' ('+p.idade+' anos)':'')+'</div>' : '')+
             '<div><b>Casado(a):</b> '+(p.casado?'Sim':'Não')+'</div>'+
-            '<div><b>Filhos:</b> '+(p.filhos?'Sim':'Não')+'</div>'+
+            '<div><b>Filhos:</b> '+(p.filhos?('Sim'+(p.qtdFilhos?' — '+p.qtdFilhos:'')):'Não')+'</div>'+
           '</div></div></div>';
       }
 
@@ -465,10 +467,12 @@
                 .filter(([k])=>k!=='answers')
                 .map(([k,v])=>k+': '+v).join('\n');
               const doc = e.fileId ? '<button class="link" data-doc="'+esc(e.fileId)+'">Ver documento enviado</button>' : '';
+              const podeAnular = e.status==='aprovado';
+              const anular = podeAnular ? '<button class="link danger" data-anular="'+esc(e.id)+'">Anular missão</button>' : '';
               return '<div class="env"><div class="eh"><span class="tag '+e.status+'">'+e.status+'</span>'+
                 (e.points?'<span class="tag aprovado">+'+e.points+' pts</span>':'')+
                 '<span>'+fmt(e.createdAt)+'</span></div>'+
-                (dados ? esc(dados)+'\n' : '')+ doc +
+                (dados ? esc(dados)+'\n' : '')+ doc + anular +
                 (e.note ? '<div style="margin-top:6px;color:var(--muted)">Obs.: '+esc(e.note)+'</div>' : '')+
                 '</div>';
             }).join('') +'</div>';
@@ -500,6 +504,15 @@
       wireModulosFicha(u);
       wirePlanoFicha(u);
       document.querySelectorAll('[data-doc]').forEach(b=> b.onclick = ()=> viewDoc(b.dataset.doc, b));
+      document.querySelectorAll('[data-anular]').forEach(b=> b.onclick = async ()=>{
+        const motivo = prompt('Anular esta missão? Os pontos que ela deu serão descontados.\n\nMotivo (opcional):');
+        if(motivo === null) return;
+        b.disabled = true; b.textContent = 'Anulando…';
+        try{
+          await api('action=subRevert', { method:'POST', body: JSON.stringify({ id: b.dataset.anular, motivo }) });
+          openFicha(u.matricula);
+        }catch(err){ alert(err.message); b.disabled=false; b.textContent='Anular missão'; }
+      });
     }catch(err){
       $('vPessoas').innerHTML = '<div class="panel"><div class="empty">'+esc(err.message)+'</div></div>';
     }
@@ -551,8 +564,9 @@
     if(!dividas.length){
       lista = '<div class="empty">Este colaborador ainda não cadastrou dívidas.</div>';
     } else {
-      lista = '<table><thead><tr><th>Credor</th><th>Total</th><th>Parcela</th><th>Juros/mês</th></tr></thead><tbody>'+
-        dividas.map(d=>'<tr><td>'+esc(d.credor||'—')+'</td><td>'+brl(d.valor)+'</td><td>'+brl(d.parcela)+'</td>'+
+      lista = '<table><thead><tr><th>Descrição</th><th>Mensalidade</th><th>Parc. restantes</th><th>Saldo ~</th><th>Juros/mês</th></tr></thead><tbody>'+
+        dividas.map(d=>'<tr><td>'+esc(d.descricao||d.credor||'—')+'</td><td>'+brl(d.parcela)+'</td>'+
+        '<td>'+(d.parcelasRestantes||'—')+'</td><td>'+brl(d.valor)+'</td>'+
         '<td>'+(d.naoSabe||d.taxa==null?'<span class="tag recusado">não sabe</span>':d.taxa+'%')+'</td></tr>').join('')+
         '</tbody></table>';
     }

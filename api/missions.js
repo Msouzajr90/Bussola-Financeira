@@ -484,10 +484,23 @@ export default async function handler(req, res) {
     if (mission.type === 'perfil') {
       const nasc = String(data.nascimento || '').trim();
       if (!nasc) return res.status(200).json({ ok: false, message: 'Informe sua data de nascimento.' });
+      const tem = String(data.filhos || 'Não') === 'Sim';
+      // Idade a partir da data de nascimento
+      let idade = null;
+      const dt = new Date(nasc);
+      if (!isNaN(dt)) {
+        const hoje = new Date();
+        idade = hoje.getFullYear() - dt.getFullYear();
+        const m = hoje.getMonth() - dt.getMonth();
+        if (m < 0 || (m === 0 && hoje.getDate() < dt.getDate())) idade--;
+        if (idade < 0 || idade > 120) idade = null;
+      }
       user.perfil = {
         nascimento: nasc,
+        idade,
         casado: String(data.casado || 'Não') === 'Sim',
-        filhos: String(data.filhos || 'Não') === 'Sim',
+        filhos: tem,
+        qtdFilhos: tem ? Math.max(0, Math.min(20, parseInt(data.qtd_filhos, 10) || 0)) : 0,
       };
       // Foto opcional (base64 já comprimida no navegador)
       if (typeof body.foto === 'string' && body.foto.startsWith('data:image')) {
@@ -495,29 +508,38 @@ export default async function handler(req, res) {
       }
       sub.status = 'aprovado';
       sub.points = mission.points;
-      sub.data = { nascimento: nasc, casado: user.perfil.casado ? 'Sim' : 'Não', filhos: user.perfil.filhos ? 'Sim' : 'Não', foto: user.foto ? 'sim' : 'não' };
+      sub.data = {
+        nascimento: nasc, idade: idade != null ? idade + ' anos' : '—',
+        casado: user.perfil.casado ? 'Sim' : 'Não',
+        filhos: tem ? `Sim (${user.perfil.qtdFilhos})` : 'Não',
+        foto: user.foto ? 'sim' : 'não',
+      };
     }
 
     /* --- DÍVIDAS: cadastro em lista, com taxa por dívida --- */
     if (mission.type === 'dividas') {
       const lista = Array.isArray(data.dividas) ? data.dividas : [];
-      if (!lista.length) return res.status(200).json({ ok: false, message: 'Adicione ao menos uma dívida (ou registre que não tem dívidas).' });
+      if (!lista.length) return res.status(200).json({ ok: false, message: 'Adicione ao menos uma dívida.' });
 
-      const norm = lista.slice(0, 20).map(d => ({
-        id: 'dv_' + crypto.randomUUID().slice(0, 8),
-        credor: String(d.credor || '').slice(0, 80),
-        valor: num(d.valor),
-        parcela: num(d.parcela),
-        naoSabe: !!d.naoSabe,
-        taxa: d.naoSabe ? null : num(d.taxa),
-      }));
+      const norm = lista.slice(0, 20).map(d => {
+        const parcela = num(d.parcela);
+        const parcelasRestantes = Math.max(0, Math.round(num(d.parcelasRestantes)));
+        return {
+          id: 'dv_' + crypto.randomUUID().slice(0, 8),
+          descricao: String(d.descricao || d.credor || '').slice(0, 100),
+          parcela,
+          parcelasRestantes,
+          valor: Math.round(parcela * parcelasRestantes), // saldo estimado
+          naoSabe: !!d.naoSabe,
+          taxa: d.naoSabe ? null : num(d.taxa),
+        };
+      });
       user.dividas = norm;
 
       // Pontua só se ao menos uma dívida tiver a taxa informada.
       const comTaxa = norm.some(d => !d.naoSabe && d.taxa > 0);
       sub.data = { total: norm.length, comTaxa: norm.filter(d => !d.naoSabe).length };
       if (!comTaxa) {
-        // Salva as dívidas, mas ainda não pontua.
         await saveUser(user);
         return res.status(200).json({
           ok: true, pontuou: false, earned: 0,

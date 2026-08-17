@@ -226,6 +226,10 @@
   .fotobtn.del{ color:#A32D2D; }
 
   /* Lista de dívidas */
+  .dvtabs{ display:flex; gap:8px; margin-bottom:14px; }
+  .dvtab{ flex:1; font-size:13px; font-weight:600; color:var(--muted); background:var(--paper);
+    border:1px solid var(--line); border-radius:10px; padding:10px; cursor:pointer; }
+  .dvtab.on{ background:var(--blue); color:#fff; border-color:var(--blue); }
   .dvcard{ border:1px solid var(--line); border-radius:12px; padding:13px; margin-bottom:10px; background:var(--paper); }
   .dvhead{ display:flex; justify-content:space-between; align-items:center; font-size:12.5px; font-weight:700;
     color:var(--blue-deep); text-transform:uppercase; letter-spacing:.04em; margin-bottom:9px; }
@@ -663,10 +667,16 @@
 
   /* ---- Sequência semanal, com aviso de vencimento ---- */
   function renderStreak(){
+    const card = $('streakCard');
+    // O check-in vive no módulo Hábitos. Se ele não está liberado, não mostra o card.
+    const temCheckin = (state.tracks||[]).some(t => (t.missions||[]).some(m => m.id === 'hab_checkin'));
+    // Enquanto o cadastro inicial não é feito, o foco é o cadastro (não o check-in).
+    const cadastroFeito = (state.user.done || {})['perfil_cadastro'];
+    if(!temCheckin || !cadastroFeito){ card.style.display = 'none'; return; }
+
     const u = state.user;
     const streak = u.streak || 0;
     const last = u.lastCheckin || 0;
-    const card = $('streakCard');
     const dias = last ? (Date.now() - last) / 86400000 : Infinity;
     let cls, fogo, titulo, desc, btn = true;
 
@@ -1164,10 +1174,10 @@
     $('dvList').innerHTML = dvItems.map((d,i)=>
       '<div class="dvcard"><div class="dvhead"><span>Dívida '+(i+1)+'</span>'+
       (dvItems.length>1?'<button type="button" class="dvdel" data-i="'+i+'">remover</button>':'')+'</div>'+
-      '<input type="text" class="dvf" data-i="'+i+'" data-k="credor" placeholder="Com quem? (banco, loja, pessoa)" value="'+esc(d.credor||'')+'">'+
+      '<input type="text" class="dvf" data-i="'+i+'" data-k="descricao" placeholder="Descrição (ex.: financiamento do carro, cartão Loja X)" value="'+esc(d.descricao||'')+'">'+
       '<div class="dvrow">'+
-        '<input type="number" class="dvf" data-i="'+i+'" data-k="valor" placeholder="Valor total (R$)" value="'+esc(String(d.valor||''))+'">'+
-        '<input type="number" class="dvf" data-i="'+i+'" data-k="parcela" placeholder="Parcela/mês (R$)" value="'+esc(String(d.parcela||''))+'">'+
+        '<input type="number" class="dvf" data-i="'+i+'" data-k="parcela" placeholder="Valor da mensalidade (R$)" value="'+esc(String(d.parcela||''))+'">'+
+        '<input type="number" class="dvf" data-i="'+i+'" data-k="parcelasRestantes" placeholder="Parcelas restantes" value="'+esc(String(d.parcelasRestantes||''))+'">'+
       '</div>'+
       '<div class="dvtaxa">'+
         '<input type="number" step="0.1" class="dvf" data-i="'+i+'" data-k="taxa" placeholder="Juros ao mês (%)" value="'+esc(String(d.taxa||''))+'"'+(d.naoSabe?' disabled':'')+'>'+
@@ -1221,16 +1231,22 @@
         '<button type="button" class="fotobtn del" id="fotoDel" style="display:none">Remover</button></div>'+
         '<input type="file" id="fotoFile" accept="image/*" style="display:none"></div>';
     } else if(mission.type === 'dividas'){
-      html = '<div class="hint">Adicione cada dívida separadamente. A taxa de juros ajuda o gestor a montar seu plano — se não souber, marque "não sei".</div>'+
-        '<div id="dvList"></div>'+
-        '<button type="button" class="rowbtn" id="dvAdd" style="margin-top:8px">+ Adicionar dívida</button>'+
-        '<div class="registrato">'+
-          '<div class="rg-t">🔎 Não lembra de todas? Consulte o Registrato (Banco Central)</div>'+
-          '<div class="rg-d">O Registrato mostra todas as dívidas que estão no seu nome no sistema financeiro. É gratuito:</div>'+
-          '<ol class="rg-steps"><li>Acesse o site do Registrato e entre com sua conta gov.br.</li>'+
-          '<li>Peça o relatório "Dívidas — SCR" (empréstimos e financiamentos).</li>'+
-          '<li>Use o relatório para preencher a lista acima com valores e credores.</li></ol>'+
-          '<a class="rg-link" href="https://registrato.bcb.gov.br" target="_blank" rel="noopener">Abrir o Registrato ↗</a>'+
+      html = '<div class="dvtabs"><button type="button" class="dvtab on" id="tabManual">✍️ Preencher manual</button>'+
+        '<button type="button" class="dvtab" id="tabReg">🔎 Buscar no Registrato</button></div>'+
+        '<div id="dvManual">'+
+          '<div class="hint">Adicione cada dívida. A taxa de juros ajuda o gestor a montar seu plano — se não souber, marque "não sei".</div>'+
+          '<div id="dvList"></div>'+
+          '<button type="button" class="rowbtn" id="dvAdd" style="margin-top:8px">+ Adicionar dívida</button>'+
+        '</div>'+
+        '<div id="dvReg" style="display:none">'+
+          '<div class="registrato">'+
+            '<div class="rg-t">🔎 Registrato — Banco Central</div>'+
+            '<div class="rg-d">O Registrato mostra <b>todas as dívidas no seu nome</b> no sistema financeiro. É oficial e gratuito. Use-o para não esquecer nenhuma dívida.</div>'+
+            '<ol class="rg-steps"><li>Toque no botão abaixo — você vai direto ao site do Banco Central.</li>'+
+            '<li>Entre com sua conta <b>gov.br</b> e peça o relatório "Dívidas — SCR".</li>'+
+            '<li>Volte aqui e cadastre cada dívida na aba "Preencher manual".</li></ol>'+
+            '<a class="rg-link" href="https://www.bcb.gov.br/cidadaniafinanceira/registrato" target="_blank" rel="noopener">Abrir o Registrato agora ↗</a>'+
+          '</div>'+
         '</div>';
     } else {
       html = (mission.fields||[]).map(f=>{
@@ -1310,7 +1326,13 @@
 
     // Perfil: foto opcional
     if(mission.type === 'perfil'){
-      if(state.perfil){ ['nascimento','casado','filhos'].forEach(k=>{ const el=$('f_'+k); if(el && state.perfil[k]!=null){ el.value = (k==='casado'||k==='filhos') ? (state.perfil[k]?'Sim':'Não') : state.perfil[k]; } }); }
+      if(state.perfil){ ['nascimento','casado','filhos'].forEach(k=>{ const el=$('f_'+k); if(el && state.perfil[k]!=null){ el.value = (k==='casado'||k==='filhos') ? (state.perfil[k]?'Sim':'Não') : state.perfil[k]; } });
+        const q=$('f_qtd_filhos'); if(q && state.perfil.qtdFilhos) q.value = state.perfil.qtdFilhos; }
+      // "Quantos filhos" só aparece quando tem filhos = Sim
+      const rowQtd = $('f_qtd_filhos') ? $('f_qtd_filhos').closest('.row') : null;
+      const toggleQtd = ()=>{ if(rowQtd) rowQtd.style.display = (($('f_filhos')||{}).value === 'Sim') ? 'block' : 'none'; };
+      if($('f_filhos')) $('f_filhos').addEventListener('change', toggleQtd);
+      toggleQtd();
       perfilFoto = state.foto || null;
       if(state.foto){ $('fotoPrev').innerHTML = '<img src="'+state.foto+'" alt="">'; $('fotoDel').style.display='inline-block'; }
       $('fotoBtn').onclick = ()=> $('fotoFile').click();
@@ -1321,10 +1343,12 @@
     // Dívidas: lista dinâmica
     if(mission.type === 'dividas'){
       dvItems = (state.dividas && state.dividas.length)
-        ? state.dividas.map(d=>({ credor:d.credor||'', valor:d.valor||'', parcela:d.parcela||'', taxa:d.taxa==null?'':d.taxa, naoSabe:!!d.naoSabe }))
-        : [{ credor:'', valor:'', parcela:'', taxa:'', naoSabe:false }];
+        ? state.dividas.map(d=>({ descricao:d.descricao||d.credor||'', parcela:d.parcela||'', parcelasRestantes:d.parcelasRestantes||'', taxa:d.taxa==null?'':d.taxa, naoSabe:!!d.naoSabe }))
+        : [{ descricao:'', parcela:'', parcelasRestantes:'', taxa:'', naoSabe:false }];
       renderDvList();
-      $('dvAdd').onclick = ()=>{ if(dvItems.length<20){ dvItems.push({credor:'',valor:'',parcela:'',taxa:'',naoSabe:false}); renderDvList(); } };
+      $('dvAdd').onclick = ()=>{ if(dvItems.length<20){ dvItems.push({descricao:'',parcela:'',parcelasRestantes:'',taxa:'',naoSabe:false}); renderDvList(); } };
+      $('tabManual').onclick = ()=>{ $('tabManual').classList.add('on'); $('tabReg').classList.remove('on'); $('dvManual').style.display='block'; $('dvReg').style.display='none'; };
+      $('tabReg').onclick = ()=>{ $('tabReg').classList.add('on'); $('tabManual').classList.remove('on'); $('dvReg').style.display='block'; $('dvManual').style.display='none'; };
     }
 
     if(mission.type === 'proof'){
@@ -1383,12 +1407,13 @@
       data.nascimento = ($('f_nascimento')||{}).value || '';
       data.casado = ($('f_casado')||{}).value || 'Não';
       data.filhos = ($('f_filhos')||{}).value || 'Não';
+      data.qtd_filhos = data.filhos === 'Sim' ? (($('f_qtd_filhos')||{}).value || '0') : '0';
       if(!data.nascimento){ toast('Informe sua data de nascimento.'); return; }
     } else if(m.type === 'dividas'){
       const limpas = dvItems
-        .map(d=>({ credor:(d.credor||'').trim(), valor:d.valor, parcela:d.parcela, taxa:d.taxa, naoSabe:!!d.naoSabe }))
-        .filter(d=> d.credor || d.valor || d.parcela);
-      if(!limpas.length){ toast('Adicione ao menos uma dívida com o nome do credor.'); return; }
+        .map(d=>({ descricao:(d.descricao||'').trim(), parcela:d.parcela, parcelasRestantes:d.parcelasRestantes, taxa:d.taxa, naoSabe:!!d.naoSabe }))
+        .filter(d=> d.descricao || d.parcela || d.parcelasRestantes);
+      if(!limpas.length){ toast('Adicione ao menos uma dívida com a descrição.'); return; }
       data.dividas = limpas;
     } else {
       for(const f of (m.fields||[])){

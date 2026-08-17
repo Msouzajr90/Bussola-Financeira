@@ -155,8 +155,9 @@ Na aba Missões, o bloco **"Meus objetivos"** lista os objetivos ativos (máx. 3
 
 ## Cadastro inicial, módulos e mais (lote de 7 ajustes)
 
-- **Cadastro inicial:** a primeira missão do app pede nascimento, se é casado(a), se tem filhos
-  e uma **foto opcional** (vira avatar na saudação). Vale pontos.
+- **Cadastro inicial:** a primeira missão do app pede nascimento (a idade é calculada sozinha),
+  se é casado(a), se tem filhos e **quantos**, e uma **foto opcional** (vira avatar). O check-in
+  semanal só aparece depois do cadastro e apenas se o módulo Hábitos estiver liberado.
 - **Módulos destraváveis:** cada trilha é um módulo. **Diagnóstico** e **Orçamento** ficam
   sempre abertos; os demais o gestor libera/trava por pessoa. O **diagnóstico inicial sugere**
   quais módulos a pessoa precisa (com base em perguntas sobre dívidas, cartão, reserva e
@@ -164,11 +165,15 @@ Na aba Missões, o bloco **"Meus objetivos"** lista os objetivos ativos (máx. 3
   a pessoa ganha um **bônus** cujo valor o gestor define na aba **Módulos**.
 - **Registrato (BACEN):** na tela de dívidas há o link oficial do Registrato + 3 passos de como usar.
 - **Frases:** cada módulo tem uma frase motivacional/bem-humorada no topo.
-- **Dívidas em lista:** cada dívida é cadastrada com credor, valor, parcela e **taxa de juros**
-  (com opção "não sei" — dívidas sem taxa não pontuam).
+- **Dívidas — duas formas:** na tela de dívidas há duas abas: **Preencher manual** (descrição,
+  valor da mensalidade, parcelas restantes e taxa de juros, com opção "não sei") e **Buscar no
+  Registrato**, com botão que abre o site do Banco Central. Dívidas sem taxa não pontuam.
 - **Plano de quitação:** na ficha do colaborador, o gestor puxa as dívidas cadastradas, gera um
   **rascunho com a IA** (ataca a maior taxa primeiro), ajusta e **publica**. O colaborador vê o
   plano no topo do módulo Dívidas.
+- **Revisar qualquer missão:** na ficha do colaborador, o gestor vê todos os envios de todas as
+  missões e pode **anular** qualquer uma (com motivo). Ao anular, os pontos daquela missão são
+  descontados e o envio fica marcado como anulado.
 - **Reserva 3x:** a meta de reserva recomenda **3× as despesas mensais** (puxadas do orçamento).
   É recomendação forte: pré-preenche o valor e avisa se ficar abaixo, mas não trava. O orçamento
   é **pré-requisito** da reserva.
