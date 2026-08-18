@@ -1257,8 +1257,8 @@
         '<button type="button" class="fotobtn del" id="fotoDel" style="display:none">Remover</button></div>'+
         '<input type="file" id="fotoFile" accept="image/*" style="display:none"></div>';
     } else if(mission.type === 'dividas'){
-      html = '<div class="dvtabs"><button type="button" class="dvtab on" id="tabManual">✍️ Preencher manual</button>'+
-        '<button type="button" class="dvtab" id="tabReg">🔎 Buscar no Registrato</button></div>'+
+      html = '<div class="dvtabs"><button type="button" class="dvtab on" id="dvTabManual">✍️ Preencher manual</button>'+
+        '<button type="button" class="dvtab" id="dvTabReg">🔎 Buscar no Registrato</button></div>'+
         '<div id="dvManual">'+
           '<div class="hint">Adicione cada dívida. A taxa de juros ajuda o gestor a montar seu plano — se não souber, marque "não sei".</div>'+
           '<div id="dvList"></div>'+
@@ -1380,8 +1380,8 @@
         : [{ descricao:'', parcela:'', parcelasRestantes:'', taxa:'', naoSabe:false }];
       renderDvList();
       $('dvAdd').onclick = ()=>{ if(dvItems.length<20){ dvItems.push({descricao:'',parcela:'',parcelasRestantes:'',taxa:'',naoSabe:false}); renderDvList(); } };
-      $('tabManual').onclick = ()=>{ $('tabManual').classList.add('on'); $('tabReg').classList.remove('on'); $('dvManual').style.display='block'; $('dvReg').style.display='none'; };
-      $('tabReg').onclick = ()=>{ $('tabReg').classList.add('on'); $('tabManual').classList.remove('on'); $('dvReg').style.display='block'; $('dvManual').style.display='none'; };
+      $('dvTabManual').onclick = ()=>{ $('dvTabManual').classList.add('on'); $('dvTabReg').classList.remove('on'); $('dvManual').style.display='block'; $('dvReg').style.display='none'; };
+      $('dvTabReg').onclick = ()=>{ $('dvTabReg').classList.add('on'); $('dvTabManual').classList.remove('on'); $('dvReg').style.display='block'; $('dvManual').style.display='none'; };
     }
 
     if(mission.type === 'proof'){
