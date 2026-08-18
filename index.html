@@ -286,6 +286,9 @@
     border:none; border-radius:9px; padding:8px 14px; cursor:pointer; }
   .m-go:hover{ background:var(--blue-deep); }
   .m-go.sec{ background:var(--surface); color:var(--blue-deep); border:1px solid var(--line); }
+  .m-edit{ flex:0 0 auto; font-size:12.5px; font-weight:600; color:var(--blue-deep); background:var(--surface);
+    border:1px solid var(--line); border-radius:9px; padding:7px 13px; cursor:pointer; margin-left:8px; }
+  .m-edit:hover{ border-color:var(--cyan); color:var(--blue); }
   .m-tag{ font-size:11px; font-weight:600; padding:4px 9px; border-radius:999px; }
   .m-tag.done{ background:var(--ok-bg); color:#0F6E56; }
   .m-tag.wait{ background:var(--warn-bg); color:#854F0B; }
@@ -564,7 +567,7 @@
 <script>
 (function(){
   const $ = id => document.getElementById(id);
-  let token = null, state = null, chatHist = [], busy = false, mode = 'login', current = null, fileData = null, fileName = '', pendingLevelUp = null, lastObjData = null, perfilFoto = null, dvItems = [];
+  let token = null, state = null, chatHist = [], busy = false, mode = 'login', current = null, fileData = null, fileName = '', pendingLevelUp = null, lastObjData = null, perfilFoto = null, dvItems = [], editandoMissao = null, pendingEditData = null;
 
   const OPTS = ['Tenho uma dúvida sobre dinheiro','Quero organizar minhas finanças','Estou com dívidas',
                 'Quero começar a guardar dinheiro','Quero fazer um planejamento','Quero comparar duas opções'];
@@ -1039,7 +1042,10 @@
         const pend = subStatus(m.id);
         const concluida = feito > 0 && !m.repeatable;
         let icon = '<div class="m-icon">•</div>', right = '';
-        if(concluida){ icon = '<div class="m-icon done">✓</div>'; right = '<span class="m-tag done">Concluída</span>'; }
+        if(concluida){ icon = '<div class="m-icon done">✓</div>';
+          const editavel = ['form','perfil','dividas'].includes(m.type);
+          right = '<span class="m-tag done">Concluída</span>' + (editavel ? '<button class="m-edit" data-edit="'+m.id+'">Editar</button>' : '');
+        }
         else if(pend){ icon = '<div class="m-icon wait">⏱</div>'; right = '<span class="m-tag wait">Em análise</span>'; }
         else { right = '<button class="m-go" data-m="'+m.id+'">Fazer</button>'; }
         // Limite de 3 objetivos
@@ -1070,6 +1076,7 @@
       $('missList').innerHTML += '<div class="modnote">🔒 Outros módulos (como Dívidas, Reserva ou Objetivos) podem ser liberados pelo gestor conforme sua necessidade.</div>';
     }
     document.querySelectorAll('[data-m]').forEach(b=> b.onclick = ()=> openMission(b.dataset.m));
+    document.querySelectorAll('[data-edit]').forEach(b=> b.onclick = ()=> editarMissao(b.dataset.edit));
   }
 
   function renderFeitas(){
@@ -1091,11 +1098,15 @@
       const tag = s.status==='aprovado' ? '<span class="m-tag done">+'+s.points+' pts</span>'
                 : s.status==='pendente' ? '<span class="m-tag wait">Em análise</span>'
                 : '<span class="m-tag bad">Não aprovada</span>';
+      const m = missionById(s.missionId);
+      const editavel = s.status==='aprovado' && m && ['form','perfil','dividas'].includes(m.type);
+      const editBtn = editavel ? '<button class="m-edit" data-edit="'+esc(s.missionId)+'">Editar</button>' : '';
       return '<div class="feito"><div class="fh"><span class="ft">'+esc(s.missionTitle||'Missão')+'</span>'+tag+'</div>'+
         '<div class="fw">'+ new Date(s.createdAt).toLocaleDateString('pt-BR') +
         (s.hasFile ? ' · comprovante enviado' : '') + '</div>'+
         (dados ? '<div class="fb">'+dados+'</div>' : '')+
         (s.note ? '<div class="fn">'+esc(s.note)+'</div>' : '')+
+        (editBtn ? '<div style="margin-top:9px">'+editBtn+'</div>' : '')+
         '</div>';
     };
 
@@ -1114,6 +1125,7 @@
         rec.map(card).join('')+'</div>';
     }
     $('vFeitas').innerHTML = h;
+    document.querySelectorAll('#vFeitas [data-edit]').forEach(b=> b.onclick = ()=> editarMissao(b.dataset.edit));
   }
 
   function renderPrizes(){
@@ -1195,8 +1207,22 @@
   }
 
   /* ---------- modal de missão ---------- */
+  function editarMissao(id){
+    const sub = (state.submissions||[]).find(s=>s.missionId===id && s.status==='aprovado');
+    pendingEditData = sub ? (sub.data||{}) : {};
+    openMission(id);
+    editandoMissao = id;
+    const m = missionById(id);
+    $('mTitle').textContent = 'Editar: ' + (m ? m.title : 'missão');
+    $('mSend').textContent = 'Salvar alterações';
+  }
+  function missionById(id){
+    for(const t of (state.tracks||[])) { const m=(t.missions||[]).find(x=>x.id===id); if(m) return m; }
+    return null;
+  }
+
   function openMission(id){
-    curLesson = null; editandoObj = null;
+    curLesson = null; editandoObj = null; editandoMissao = null;
     let mission=null;
     for(const t of state.tracks){ const m=t.missions.find(x=>x.id===id); if(m){ mission=m; break; } }
     if(!mission) return;
@@ -1276,6 +1302,13 @@
     if(mission.id === 'obj_criar' && lastObjData){
       (mission.fields||[]).forEach(f=>{ const el=$('f_'+f.id); if(el && lastObjData[f.id]!=null) el.value = lastObjData[f.id]; });
     }
+    // Editar missão de formulário: pré-preenche com o que já foi enviado.
+    if(pendingEditData && mission.type === 'form'){
+      (mission.fields||[]).forEach(f=>{ const el=$('f_'+f.id); if(el && pendingEditData[f.id]!=null) el.value = pendingEditData[f.id]; });
+      // dispara os cálculos ao vivo (orçamento/reserva)
+      ['renda','moradia','contas','alimentacao','transporte','parcelas','outros','meta'].forEach(k=>{ const el=$('f_'+k); if(el) el.dispatchEvent(new Event('input')); });
+    }
+    pendingEditData = null;
 
     // Orçamento ao vivo
     if(mission.id === 'orc_montar'){
@@ -1427,14 +1460,17 @@
     try{
       const payload = editandoObj
         ? { action:'objEditar', id: editandoObj, data }
-        : { missionId: m.id, data, file, fileName };
+        : editandoMissao
+          ? { action:'missionEdit', missionId: editandoMissao, data }
+          : { missionId: m.id, data, file, fileName };
       if(m.type === 'perfil' && perfilFoto) payload.foto = perfilFoto;
       const j = await api('/api/missions', { method:'POST', body: JSON.stringify(payload) });
 
       if(j.ok === false){ toast(j.message || 'Revise o preenchimento.'); return; }
 
       $('veil').classList.remove('on');
-      if(j.pending){ toast(j.message); }
+      if(j.editado){ toast('Missão atualizada ✓'); }
+      else if(j.pending){ toast(j.message); }
       else if(j.pontuou === false && j.message){ toast(j.message); }
       else if(j.objetivo){
         const editou = !!editandoObj;
@@ -1451,7 +1487,7 @@
         if(j.levelUp) setTimeout(()=> celebrate(j.levelUp), 700);
       }
       if(j.moduleBonus){ setTimeout(()=> toast('🏅 Módulo '+j.moduleBonus.modulo+' completo! +'+j.moduleBonus.pontos+' pts de bônus'), 1400); }
-      editandoObj = null;
+      editandoObj = null; editandoMissao = null;
       state = await api('/api/missions');
       renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes();
     }catch(err){ toast(err.message); }

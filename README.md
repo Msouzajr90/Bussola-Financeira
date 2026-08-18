@@ -165,9 +165,13 @@ Na aba Missões, o bloco **"Meus objetivos"** lista os objetivos ativos (máx. 3
   a pessoa ganha um **bônus** cujo valor o gestor define na aba **Módulos**.
 - **Registrato (BACEN):** na tela de dívidas há o link oficial do Registrato + 3 passos de como usar.
 - **Frases:** cada módulo tem uma frase motivacional/bem-humorada no topo.
-- **Dívidas — duas formas:** na tela de dívidas há duas abas: **Preencher manual** (descrição,
-  valor da mensalidade, parcelas restantes e taxa de juros, com opção "não sei") e **Buscar no
-  Registrato**, com botão que abre o site do Banco Central. Dívidas sem taxa não pontuam.
+- **Dívidas — duas formas:** a missão "Conheça suas dívidas reais" (no Diagnóstico, sempre aberto)
+  tem duas abas: **Preencher manual** (descrição, valor da mensalidade, parcelas restantes e taxa
+  de juros, com opção "não sei") e **Buscar no Registrato**, com botão que abre o site do Banco
+  Central. Dívidas sem taxa não pontuam.
+- **Editar missões concluídas:** o colaborador pode reabrir e editar qualquer missão de formulário,
+  perfil ou dívidas já concluída (botão "Editar" na lista de missões e na aba Concluídas). A edição
+  atualiza os dados sem conceder pontos de novo.
 - **Plano de quitação:** na ficha do colaborador, o gestor puxa as dívidas cadastradas, gera um
   **rascunho com a IA** (ataca a maior taxa primeiro), ajusta e **publica**. O colaborador vê o
   plano no topo do módulo Dívidas.

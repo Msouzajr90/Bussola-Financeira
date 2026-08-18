@@ -431,6 +431,55 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, pontuou: true, editado: true, objetivo: av.avaliacao, user: publicUser(user) });
     }
 
+    /* ---------------- Editar uma missão concluída (form/perfil/dívidas) ---------------- */
+    // Atualiza os dados sem conceder pontos de novo.
+    if (body.action === 'missionEdit') {
+      const f = findMission(body.missionId);
+      if (!f) return res.status(404).json({ error: 'Missão não encontrada.' });
+      const mission = f.mission;
+      if (!['form', 'perfil', 'dividas'].includes(mission.type)) {
+        return res.status(400).json({ error: 'Esta missão não pode ser editada.' });
+      }
+      const subs = await listSubmissions({ matricula: user.matricula, limit: 200 });
+      const alvo = subs.find(s => s.missionId === mission.id && s.status === 'aprovado');
+      if (!alvo) return res.status(404).json({ error: 'Você ainda não concluiu esta missão.' });
+      const d = body.data || {};
+
+      if (mission.type === 'perfil') {
+        const nasc = String(d.nascimento || '').trim();
+        if (!nasc) return res.status(200).json({ ok: false, message: 'Informe sua data de nascimento.' });
+        const tem = String(d.filhos || 'Não') === 'Sim';
+        let idade = null; const dt = new Date(nasc);
+        if (!isNaN(dt)) { const h = new Date(); idade = h.getFullYear() - dt.getFullYear(); const mm = h.getMonth() - dt.getMonth(); if (mm < 0 || (mm === 0 && h.getDate() < dt.getDate())) idade--; if (idade < 0 || idade > 120) idade = null; }
+        user.perfil = { nascimento: nasc, idade, casado: String(d.casado || 'Não') === 'Sim', filhos: tem, qtdFilhos: tem ? Math.max(0, Math.min(20, parseInt(d.qtd_filhos, 10) || 0)) : 0 };
+        if (typeof body.foto === 'string' && body.foto.startsWith('data:image')) user.foto = body.foto.slice(0, 400000);
+        alvo.data = { nascimento: nasc, idade: idade != null ? idade + ' anos' : '—', casado: user.perfil.casado ? 'Sim' : 'Não', filhos: tem ? `Sim (${user.perfil.qtdFilhos})` : 'Não', foto: user.foto ? 'sim' : 'não' };
+      } else if (mission.type === 'dividas') {
+        const lista = Array.isArray(d.dividas) ? d.dividas : [];
+        if (!lista.length) return res.status(200).json({ ok: false, message: 'Adicione ao menos uma dívida.' });
+        user.dividas = lista.slice(0, 20).map(x => {
+          const parcela = num(x.parcela), pr = Math.max(0, Math.round(num(x.parcelasRestantes)));
+          return { id: 'dv_' + crypto.randomUUID().slice(0, 8), descricao: String(x.descricao || '').slice(0, 100), parcela, parcelasRestantes: pr, valor: Math.round(parcela * pr), naoSabe: !!x.naoSabe, taxa: x.naoSabe ? null : num(x.taxa) };
+        });
+        alvo.data = { total: user.dividas.length, comTaxa: user.dividas.filter(x => !x.naoSabe).length };
+        alvo.note = `${user.dividas.length} dívida(s) mapeada(s). (editado)`;
+      } else {
+        // form genérico: coerência da proposta de orçamento futuro
+        if (mission.id === 'orc_metas') {
+          const rf = num(d.renda_futura), gf = num(d.gastos_futuros);
+          if (gf > rf) return res.status(200).json({ ok: false, message: 'Na sua meta, os gastos não podem passar da renda.' });
+        }
+        const check = await validateForm(mission, d);
+        if (!check.valid) return res.status(200).json({ ok: false, message: check.feedback || 'Confira o preenchimento.' });
+        alvo.data = d;
+      }
+
+      alvo.editadoEm = Date.now();
+      await saveSubmission(alvo);
+      await saveUser(user);
+      return res.status(200).json({ ok: true, editado: true, user: publicUser(user) });
+    }
+
     // A missão pode vir do catálogo padrão ou ser uma missão especial do gestor.
     let mission = null;
     const found = findMission(body.missionId);
