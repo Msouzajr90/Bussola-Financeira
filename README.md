@@ -207,6 +207,18 @@ Na aba Missões, o bloco **"Meus objetivos"** lista os objetivos ativos (máx. 3
   pontos, envios, arquivos e conversa daquela pessoa (útil para limpar dados de teste). Exige digitar
   a matrícula para confirmar e não pode ser desfeito.
 
+## Reaproveitamento de informações
+
+Para o colaborador não digitar a mesma coisa duas vezes, alguns campos já vêm preenchidos com o
+que ele informou em missões anteriores (com um aviso "já preenchemos com o que você informou antes"
+e sempre editável):
+- **Renda:** o orçamento reaproveita a renda informada no diagnóstico inicial.
+- **Parcelas de dívida:** o campo "Parcelas e dívidas" do orçamento vem com a soma das mensalidades
+  das dívidas já cadastradas.
+- **Metas futuras:** a renda e os gastos-meta partem dos valores do orçamento atual.
+O preenchimento só acontece na primeira vez e apenas em campos vazios — nunca sobrescreve o que a
+pessoa digitou, e ela pode ajustar tudo antes de enviar.
+
 ---
 
 ## Publicação

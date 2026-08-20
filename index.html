@@ -298,6 +298,9 @@
   .news .ncta{ display:inline-block; margin-top:9px; font-size:12.5px; font-weight:600; color:#fff; background:var(--blue); border:none; border-radius:8px; padding:7px 13px; cursor:pointer; }
   .news .ncta:hover{ background:var(--blue-deep); }
 
+  .reuse-note{ background:#EAF6EF; border:1px solid #BFE3CE; color:#0F6E56; border-radius:10px;
+    padding:10px 13px; font-size:12.5px; line-height:1.5; margin-bottom:14px; }
+
   .nav{ display:flex; gap:8px; margin-bottom:16px; }
   .nav button{ flex:1; padding:11px; border:1px solid var(--line); background:var(--surface); border-radius:11px;
     font-size:14px; font-weight:600; color:var(--muted); cursor:pointer; }
@@ -1325,6 +1328,12 @@
     for(const t of (state.tracks||[])) { const m=(t.missions||[]).find(x=>x.id===id); if(m) return m; }
     return null;
   }
+  // Dados de uma missão já concluída (para reaproveitar informações).
+  function subData(id){
+    const s = (state.submissions||[]).find(x=>x.missionId===id && x.status==='aprovado');
+    return s ? (s.data||{}) : null;
+  }
+  const numBR = v => { const x = parseFloat(String(v==null?'':v).replace(/\./g,'').replace(',','.')); return isFinite(x)?x:0; };
 
   function openMission(id){
     curLesson = null; editandoObj = null; editandoMissao = null;
@@ -1408,12 +1417,41 @@
       (mission.fields||[]).forEach(f=>{ const el=$('f_'+f.id); if(el && lastObjData[f.id]!=null) el.value = lastObjData[f.id]; });
     }
     // Editar missão de formulário: pré-preenche com o que já foi enviado.
+    const wasEditing = !!pendingEditData;
     if(pendingEditData && mission.type === 'form'){
       (mission.fields||[]).forEach(f=>{ const el=$('f_'+f.id); if(el && pendingEditData[f.id]!=null) el.value = pendingEditData[f.id]; });
       // dispara os cálculos ao vivo (orçamento/reserva)
       ['renda','moradia','contas','alimentacao','transporte','parcelas','outros','meta'].forEach(k=>{ const el=$('f_'+k); if(el) el.dispatchEvent(new Event('input')); });
     }
     pendingEditData = null;
+
+    // Reaproveitar informações já dadas (só na 1ª vez, não ao editar).
+    if(!wasEditing && mission.type === 'form'){
+      const reused = [];
+      const setIf = (fid, val)=>{ const el=$('f_'+fid); if(el && !el.value && val!=null && String(val)!=='' && Number(val)!==0){ el.value = Math.round(numBR(val)) || val; reused.push(fid); } };
+
+      if(mission.id === 'orc_montar'){
+        const diag = subData('diag_inicial');
+        if(diag) setIf('renda', diag.renda);
+        // Parcelas de dívida = soma das mensalidades já cadastradas nas dívidas
+        const somaParc = (state.dividas||[]).reduce((a,d)=> a + numBR(d.parcela), 0);
+        if(somaParc > 0) setIf('parcelas', somaParc);
+      }
+      if(mission.id === 'orc_metas'){
+        const orc = subData('orc_montar');
+        if(orc){
+          setIf('renda_futura', orc.renda);
+          const gastos = ['moradia','contas','alimentacao','transporte','parcelas','outros'].reduce((a,k)=> a + numBR(orc[k]), 0);
+          if(gastos > 0) setIf('gastos_futuros', gastos);
+        }
+      }
+
+      if(reused.length){
+        $('mBody').insertAdjacentHTML('afterbegin',
+          '<div class="reuse-note">♻️ Já preenchemos com o que você informou antes. Confira e ajuste se algo mudou.</div>');
+        ['renda','moradia','contas','alimentacao','transporte','parcelas','outros','meta'].forEach(k=>{ const el=$('f_'+k); if(el) el.dispatchEvent(new Event('input')); });
+      }
+    }
 
     // Orçamento ao vivo
     if(mission.id === 'orc_montar'){
