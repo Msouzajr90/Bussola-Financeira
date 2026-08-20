@@ -260,6 +260,44 @@
   .alerta.ok{ background:#E1F5EE; border:1px solid #B5E0CC; color:#0F6E56; }
   .modnote{ text-align:center; font-size:12.5px; color:var(--muted); padding:14px; }
 
+  /* Barra de topo do app + sininho */
+  .apptop{ display:flex; align-items:center; gap:11px; margin-bottom:14px; }
+  .orb.sm{ width:32px; height:32px; }
+  .apptop-brand{ flex:1; line-height:1.15; }
+  .apptop-brand b{ font-family:'Archivo',sans-serif; font-weight:800; font-size:14px; color:var(--blue-deep); display:block; }
+  .apptop-brand span{ font-size:11px; color:var(--muted); }
+  .bell{ position:relative; width:42px; height:42px; border-radius:12px; background:var(--surface);
+    border:1px solid var(--line); display:grid; place-items:center; font-size:19px; cursor:pointer; box-shadow:var(--shadow); }
+  .bell:hover{ border-color:var(--cyan); }
+  .nbadge{ position:absolute; top:-5px; right:-5px; min-width:19px; height:19px; padding:0 5px; border-radius:10px;
+    background:#E5484D; color:#fff; font-size:11px; font-weight:700; display:grid; place-items:center;
+    border:2px solid var(--surface); font-family:'Archivo',sans-serif; }
+
+  /* Painel de novidades */
+  .newsveil{ position:fixed; inset:0; background:rgba(0,32,54,.45); display:none; z-index:60;
+    justify-content:center; align-items:flex-start; padding:20px 14px; overflow-y:auto; }
+  .newsveil.on{ display:flex; }
+  .newspanel{ width:100%; max-width:460px; background:var(--surface); border-radius:16px; overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,32,54,.3); animation:slideDown .2s ease; }
+  @keyframes slideDown{ from{ transform:translateY(-12px); opacity:0; } to{ transform:none; opacity:1; } }
+  .newshead{ display:flex; align-items:center; justify-content:space-between; padding:15px 18px; border-bottom:1px solid var(--line); }
+  .newshead h3{ font-family:'Archivo',sans-serif; font-weight:800; font-size:17px; color:var(--blue-deep); margin:0; }
+  .newsclose{ background:none; border:none; font-size:17px; color:var(--muted); cursor:pointer; padding:4px 8px; }
+  .newslist{ max-height:70vh; overflow-y:auto; }
+  .newsempty{ padding:36px 18px; text-align:center; color:var(--muted); font-size:14px; }
+  .news{ display:flex; gap:13px; padding:15px 18px; border-bottom:1px solid var(--line); position:relative; }
+  .news:last-child{ border-bottom:none; }
+  .news.unread{ background:#f4f9fd; }
+  .news.unread::before{ content:''; position:absolute; left:7px; top:22px; width:7px; height:7px; border-radius:50%; background:var(--blue); }
+  .news .ic{ width:38px; height:38px; border-radius:11px; background:var(--paper); border:1px solid var(--line); display:grid; place-items:center; font-size:19px; flex:0 0 auto; }
+  .news .nc{ flex:1; min-width:0; }
+  .news .nt{ font-size:14.5px; font-weight:600; color:var(--ink); display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  .tagnew{ font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#fff; background:var(--cyan); border-radius:5px; padding:2px 6px; font-family:'Archivo',sans-serif; }
+  .news .nd{ font-size:13px; color:var(--muted); line-height:1.5; margin-top:4px; }
+  .news .nmeta{ font-size:11.5px; color:#9aa8b4; margin-top:7px; }
+  .news .ncta{ display:inline-block; margin-top:9px; font-size:12.5px; font-weight:600; color:#fff; background:var(--blue); border:none; border-radius:8px; padding:7px 13px; cursor:pointer; }
+  .news .ncta:hover{ background:var(--blue-deep); }
+
   .nav{ display:flex; gap:8px; margin-bottom:16px; }
   .nav button{ flex:1; padding:11px; border:1px solid var(--line); background:var(--surface); border-radius:11px;
     font-size:14px; font-weight:600; color:var(--muted); cursor:pointer; }
@@ -447,6 +485,20 @@
 
   <!-- ===================== PAINEL ===================== -->
   <section id="app" style="display:none">
+
+    <div class="apptop">
+      <div class="orb sm"></div>
+      <div class="apptop-brand"><b>Marco Souza</b><span>em parceria com Engeval</span></div>
+      <button class="bell" id="bellBtn" aria-label="Novidades">🔔<span class="nbadge" id="newsBadge" style="display:none">0</span></button>
+    </div>
+
+    <!-- Painel de novidades -->
+    <div class="newsveil" id="newsVeil">
+      <div class="newspanel" id="newsPanel">
+        <div class="newshead"><h3>Novidades</h3><button class="newsclose" id="newsClose">✕</button></div>
+        <div class="newslist" id="newsList"></div>
+      </div>
+    </div>
 
     <div class="hero" id="hero">
       <div class="greet" id="hGreet">Bom te ver!</div>
@@ -645,7 +697,7 @@
     $('userbox').style.display='flex';
     $('uName').textContent = state.user.nome;
     $('uMat').textContent = 'Matrícula ' + state.user.matricula;
-    renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes();
+    renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes(); renderNews();
     if(!chatHist.length) initChat();
   }
 
@@ -667,6 +719,54 @@
     renderImpact();
     renderBelong();
   }
+
+  /* ---------- Novidades ---------- */
+  function renderNews(){
+    const news = state.news || [];
+    const badge = $('newsBadge');
+    const unread = state.newsUnread || 0;
+    if(unread > 0){ badge.textContent = unread > 9 ? '9+' : unread; badge.style.display = 'grid'; }
+    else badge.style.display = 'none';
+
+    const seen = state.newsSeen || 0;
+    if(!news.length){
+      $('newsList').innerHTML = '<div class="newsempty">Nenhuma novidade por aqui ainda. 👀</div>';
+      return;
+    }
+    const ctaLabel = { missoes:'Ir para Missões', aprender:'Ver aulas', premios:'Ver prêmios', chat:'Falar com o Orientador' };
+    $('newsList').innerHTML = news.map(n=>{
+      const novo = (n.createdAt||0) > seen;
+      const cta = n.cta && ctaLabel[n.cta] ? '<button class="ncta" data-cta="'+esc(n.cta)+'">'+ctaLabel[n.cta]+'</button>' : '';
+      return '<div class="news'+(novo?' unread':'')+'">'+
+        '<div class="ic">'+esc(n.emoji||'📣')+'</div>'+
+        '<div class="nc"><div class="nt">'+esc(n.titulo)+(novo?' <span class="tagnew">Novo</span>':'')+'</div>'+
+        (n.texto?'<div class="nd">'+esc(n.texto)+'</div>':'')+
+        cta +
+        '<div class="nmeta">'+tempoDe(n.createdAt)+'</div></div></div>';
+    }).join('');
+    document.querySelectorAll('#newsList [data-cta]').forEach(b=> b.onclick = ()=>{ closeNews(); showView(b.dataset.cta); });
+  }
+
+  function tempoDe(ts){
+    if(!ts) return '';
+    const dias = Math.floor((Date.now()-ts)/86400000);
+    if(dias<=0) return 'Publicado hoje';
+    if(dias===1) return 'Publicado ontem';
+    if(dias<7) return 'Publicado há '+dias+' dias';
+    return 'Publicado em '+new Date(ts).toLocaleDateString('pt-BR');
+  }
+
+  async function openNews(){
+    $('newsVeil').classList.add('on');
+    if((state.newsUnread||0) > 0){
+      try{
+        await api('/api/missions', { method:'POST', body: JSON.stringify({ action:'newsSeen' }) });
+        state.newsSeen = Date.now(); state.newsUnread = 0;
+        renderNews();
+      }catch(_){}
+    }
+  }
+  function closeNews(){ $('newsVeil').classList.remove('on'); }
 
   /* ---- Sequência semanal, com aviso de vencimento ---- */
   function renderStreak(){
@@ -1024,7 +1124,7 @@
       await api('/api/missions', { method:'POST', body: JSON.stringify({ action:'objExcluir', id }) });
       toast('Objetivo excluído.');
       state = await api('/api/missions');
-      renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes();
+      renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes(); renderNews();
     }catch(err){ toast(err.message); }
   }
 
@@ -1146,19 +1246,24 @@
   }
 
   /* ---------- navegação ---------- */
+  function showView(v){
+    document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('on', x.dataset.view===v));
+    $('vMissoes').style.display = v==='missoes' ? 'block':'none';
+    $('vFeitas').style.display  = v==='feitas'  ? 'block':'none';
+    $('vAprender').style.display= v==='aprender'? 'block':'none';
+    $('vChat').style.display    = v==='chat'    ? 'block':'none';
+    $('vPremios').style.display = v==='premios' ? 'block':'none';
+    if(v==='aprender') loadLessons();
+    window.scrollTo(0,0);
+  }
   document.querySelectorAll('.nav button').forEach(b=>{
-    b.onclick = ()=>{
-      document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on'));
-      b.classList.add('on');
-      const v = b.dataset.view;
-      $('vMissoes').style.display = v==='missoes' ? 'block':'none';
-      $('vFeitas').style.display  = v==='feitas'  ? 'block':'none';
-      $('vAprender').style.display= v==='aprender'? 'block':'none';
-      $('vChat').style.display    = v==='chat'    ? 'block':'none';
-      if(v==='aprender') loadLessons();
-      $('vPremios').style.display = v==='premios' ? 'block':'none';
-    };
+    b.onclick = ()=> showView(b.dataset.view);
   });
+
+  // Sininho de novidades
+  $('bellBtn').onclick = openNews;
+  $('newsClose').onclick = closeNews;
+  $('newsVeil').onclick = e => { if(e.target === $('newsVeil')) closeNews(); };
 
   /* ---------- foto do perfil ---------- */
   function handlePhoto(file){
@@ -1489,7 +1594,7 @@
       if(j.moduleBonus){ setTimeout(()=> toast('🏅 Módulo '+j.moduleBonus.modulo+' completo! +'+j.moduleBonus.pontos+' pts de bônus'), 1400); }
       editandoObj = null; editandoMissao = null;
       state = await api('/api/missions');
-      renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes();
+      renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes(); renderNews();
     }catch(err){ toast(err.message); }
     finally{ $('mSend').disabled=false; $('mSend').textContent = m.type==='proof'?'Enviar comprovante':'Enviar'; }
   };
@@ -1632,7 +1737,7 @@
       toast('+' + j.earned + ' pontos!');
       if(j.levelUp) setTimeout(()=> celebrate(j.levelUp), 700);
       state = await api('/api/missions');
-      renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes();
+      renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes(); renderNews();
       await loadLessons();
     }catch(err){ toast(err.message); $('mSend').disabled=false; $('mSend').textContent='Concluir aula'; }
   }

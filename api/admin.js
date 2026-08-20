@@ -21,6 +21,8 @@ import {
   listCustomMissions, saveCustomMission, deleteCustomMission,
   listLessons, saveLesson, deleteLesson,
   resetPin, getModuleConfig, setModuleConfig,
+  getNews, setNews, dumpAll, restoreDump, listBackups, getBackup,
+  saveBackupSnapshot, deleteUserFully,
 } from '../lib/store.js';
 import { levelFor, findMission, LEVELS, TRACKS, BASE_MODULES, DEFAULT_MODULE_POINTS } from '../lib/missions.js';
 import { youtubeId } from '../lib/youtube.js';
@@ -335,6 +337,27 @@ export default async function handler(req, res) {
         });
       }
 
+      /* ---------- Backup COMPLETO do banco (tudo, para restauração) ---------- */
+      if (action === 'backupFull') {
+        const dump = await dumpAll();
+        return res.status(200).json(dump);
+      }
+
+      /* ---------- Snapshots diários automáticos ---------- */
+      if (action === 'backupList') {
+        return res.status(200).json({ backups: await listBackups() });
+      }
+      if (action === 'backupGet') {
+        const dump = await getBackup(req.query.bkey);
+        if (!dump) return res.status(404).json({ error: 'Backup não encontrado.' });
+        return res.status(200).json(dump);
+      }
+
+      /* ---------- Novidades ---------- */
+      if (action === 'news') {
+        return res.status(200).json({ news: await getNews() });
+      }
+
       /* ---------- Aulas (área educacional) ---------- */
       if (action === 'lessons') {
         const [lessons, users] = await Promise.all([listLessons(), listUsers()]);
@@ -592,6 +615,55 @@ export default async function handler(req, res) {
         sub.revisadoEm = Date.now();
         await saveSubmission(sub);
         return res.status(200).json({ ok: true });
+      }
+
+      /* ---------- Publicar uma novidade ---------- */
+      if (action === 'newsPublish') {
+        const titulo = String(body.titulo || '').trim();
+        if (!titulo) return res.status(400).json({ error: 'Informe o título da novidade.' });
+        const news = await getNews();
+        const item = {
+          id: 'nw_' + crypto.randomUUID().slice(0, 8),
+          emoji: String(body.emoji || '📣').slice(0, 4),
+          titulo: titulo.slice(0, 120),
+          texto: String(body.texto || '').slice(0, 600),
+          cta: ['missoes', 'aprender', 'premios', 'chat'].includes(body.cta) ? body.cta : '',
+          createdAt: Date.now(),
+        };
+        news.unshift(item);
+        await setNews(news);
+        return res.status(200).json({ ok: true, news });
+      }
+
+      /* ---------- Excluir uma novidade ---------- */
+      if (action === 'newsDelete') {
+        const news = (await getNews()).filter(n => n.id !== body.id);
+        await setNews(news);
+        return res.status(200).json({ ok: true, news });
+      }
+
+      /* ---------- Restaurar um backup (sobrescrever por cima) ---------- */
+      if (action === 'restore') {
+        const dump = body.dump;
+        if (!dump || !dump.dados) return res.status(400).json({ error: 'Arquivo de backup inválido ou vazio.' });
+        const r = await restoreDump(dump);
+        return res.status(200).json({ ok: true, ...r });
+      }
+
+      /* ---------- Gerar um snapshot diário agora (manual) ---------- */
+      if (action === 'backupNow') {
+        const r = await saveBackupSnapshot();
+        return res.status(200).json({ ok: true, ...r });
+      }
+
+      /* ---------- Excluir um colaborador integralmente ---------- */
+      if (action === 'userDelete') {
+        if (String(body.confirm || '') !== String(body.matricula || '')) {
+          return res.status(400).json({ error: 'Confirmação não confere.' });
+        }
+        const r = await deleteUserFully(body.matricula);
+        if (!r.ok) return res.status(404).json({ error: r.motivo || 'Não foi possível excluir.' });
+        return res.status(200).json({ ok: true, enviosRemovidos: r.enviosRemovidos });
       }
 
       if (action === 'rh') {

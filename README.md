@@ -182,6 +182,31 @@ Na aba Missões, o bloco **"Meus objetivos"** lista os objetivos ativos (máx. 3
   É recomendação forte: pré-preenche o valor e avisa se ficar abaixo, mas não trava. O orçamento
   é **pré-requisito** da reserva.
 
+## Novidades (mural de avisos)
+
+- No topo do app há um **sininho 🔔** com um contador de novidades não lidas. Ao tocar, abre o
+  painel **Novidades** com os avisos (emoji, título, texto, data e um botão opcional "ver agora").
+- O **gestor publica** as novidades na aba **Novidades** do painel (escolhe emoji, título, texto e,
+  se quiser, um destino como Missões/Aulas/Prêmios/Orientador). Pode excluir quando quiser.
+- Cada colaborador vê o selo **"Novo"** nas novidades desde a última vez que abriu o painel; ao
+  abrir, o contador zera para ele.
+
+## Backup completo
+
+- Além do botão **💾 Backup** (estruturado, sem credenciais), há o **🗄️ Backup completo**, que
+  exporta **todo o banco de dados de uma vez** (todas as chaves, incluindo credenciais protegidas por hash).
+- **Aba Backup** (no painel do gestor):
+  - **Recuperar backup:** suba um arquivo de backup completo e ele é restaurado **sobrescrevendo por
+    cima** — cada registro do arquivo substitui o atual; o que existir só no sistema é mantido. Exige
+    conferir o resumo do arquivo e digitar "RESTAURAR".
+  - **Backups automáticos diários:** um cron do Vercel (`vercel.json` → `/api/cron-backup`, todo dia
+    às 6h UTC) gera um snapshot e guarda os **últimos 7 dias** dentro do Redis. Dá para baixar cada
+    um ou gerar um na hora ("Gerar agora"). Configure a variável `CRON_SECRET` na Vercel para
+    proteger a rota (opcional, recomendado).
+- **Excluir colaborador:** na ficha, o botão "🗑️ Excluir colaborador" apaga integralmente o cadastro,
+  pontos, envios, arquivos e conversa daquela pessoa (útil para limpar dados de teste). Exige digitar
+  a matrícula para confirmar e não pode ser desfeito.
+
 ---
 
 ## Publicação

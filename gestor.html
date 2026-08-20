@@ -141,6 +141,17 @@
   .modrow:last-child{ border-bottom:none; }
   .modn{ flex:1; font-weight:600; font-size:14px; color:var(--ink); }
   .modtoggle{ flex:0 0 auto; }
+  .emojirow{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:6px; }
+  .emojibtn{ width:40px; height:40px; border-radius:10px; border:1px solid var(--line); background:var(--surface);
+    font-size:19px; cursor:pointer; }
+  .emojibtn.on{ border-color:var(--blue); background:#EAF4FB; box-shadow:0 0 0 2px rgba(0,120,192,.15); }
+  .nvrow{ display:flex; align-items:flex-start; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
+  .nvrow:last-child{ border-bottom:none; }
+  .nvemoji{ font-size:22px; flex:0 0 auto; }
+  .nvinfo{ flex:1; min-width:0; }
+  .nvt{ font-weight:600; font-size:14px; color:var(--ink); }
+  .nvd{ font-size:13px; color:var(--muted); margin-top:3px; line-height:1.5; }
+  .nvm{ font-size:11.5px; color:#9aa8b4; margin-top:5px; }
   .ficha-head .bg{ width:52px; height:52px; border-radius:50%; background:var(--orb); color:#fff;
     display:grid; place-items:center; font-family:'Archivo',sans-serif; font-weight:800; font-size:20px; }
   .ficha-head .nm{ font-family:'Archivo',sans-serif; font-weight:800; font-size:18px; color:var(--blue-dark); }
@@ -206,6 +217,14 @@
   /* construtor de quiz */
   .callout{ background:#EAF4FB; border:1px solid #CFE6F5; border-radius:10px; padding:12px 14px;
     font-size:13px; color:var(--blue-deep); line-height:1.5; margin:16px 0 12px; }
+  .callout.danger{ background:#FDECEC; border-color:#F3C9C9; color:#9A2A2A; }
+  .btn.danger{ background:#C0392B; }
+  .btn.danger:hover{ background:#A5281B; }
+  .btn.danger:disabled{ background:#d9a29c; }
+  .rowbtn.del{ color:#A32D2D; border-color:#E9C4C4; }
+  .rowbtn.del:hover{ background:#FDF2F2; border-color:#E09999; }
+  .rsinfo{ margin-top:8px; font-size:13px; }
+  .rsok{ color:#0F6E56; } .rserr{ color:#A32D2D; }
   .qbuilder{ border:1px solid var(--line); border-radius:11px; padding:14px; margin-bottom:12px; background:var(--paper); }
   .qb-head{ display:flex; justify-content:space-between; align-items:center; font-size:12.5px; font-weight:700;
     color:var(--blue-deep); text-transform:uppercase; letter-spacing:.04em; margin-bottom:9px; }
@@ -246,10 +265,13 @@
       <button type="button" data-v="especiais">Missões especiais</button>
       <button type="button" data-v="aulas">Aulas</button>
       <button type="button" data-v="modulos">Módulos</button>
+      <button type="button" data-v="novidades">Novidades</button>
+      <button type="button" data-v="backup">Backup</button>
       <button type="button" data-v="premios">Prêmios</button>
       <span class="spacer"></span>
       <button type="button" id="csv">⬇ Exportar CSV</button>
       <button type="button" id="backup">💾 Backup</button>
+      <button type="button" id="backupFull">🗄️ Backup completo</button>
       <button type="button" id="reload">Atualizar</button>
       <button type="button" id="exit">Sair</button>
     </div>
@@ -261,6 +283,8 @@
     <div id="vEspeciais" style="display:none"></div>
     <div id="vAulas" style="display:none"></div>
     <div id="vModulos" style="display:none"></div>
+    <div id="vNovidades" style="display:none"></div>
+    <div id="vBackup" style="display:none"></div>
     <div id="vPremios" style="display:none"></div>
   </section>
 </div>
@@ -309,6 +333,23 @@
       setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
       b.textContent = 'Backup salvo ✓';
       setTimeout(()=>{ b.textContent=txt; b.disabled=false; }, 1800);
+    }catch(err){ alert(err.message); b.textContent=txt; b.disabled=false; }
+  };
+
+  /* ---------- backup COMPLETO (todo o banco, para restauração) ---------- */
+  $('backupFull').onclick = async ()=>{
+    if(!confirm('Gerar o backup COMPLETO do banco?\n\nEle inclui TODOS os dados, inclusive credenciais de acesso (protegidas). Guarde o arquivo em local seguro.')) return;
+    const b = $('backupFull'); const txt = b.textContent; b.disabled=true; b.textContent='Gerando… (pode levar alguns segundos)';
+    try{
+      const data = await api('action=backupFull');
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'backup_COMPLETO_' + new Date().toISOString().slice(0,16).replace(/[:T]/g,'-') + '.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+      b.textContent = '✓ '+ (data.totalChaves||0) +' registros salvos';
+      setTimeout(()=>{ b.textContent=txt; b.disabled=false; }, 2600);
     }catch(err){ alert(err.message); b.textContent=txt; b.disabled=false; }
   };
 
@@ -431,6 +472,7 @@
           '<div><div class="k">Sequência</div><div class="v">'+(u.streak||0)+'</div></div>'+
         '</div></div>'+
         '<div class="ficha-acts"><button class="rowbtn" id="resetPin">🔑 Redefinir PIN</button>'+
+        '<button class="rowbtn del" id="userDelete">🗑️ Excluir colaborador</button>'+
         '<span id="rpMsg" style="font-size:12.5px;color:var(--muted);margin-left:10px"></span></div>'+
         '</div>';
 
@@ -503,6 +545,19 @@
       };
       wireModulosFicha(u);
       wirePlanoFicha(u);
+      const del = $('userDelete');
+      if(del) del.onclick = async ()=>{
+        const nome = u.nome || u.matricula;
+        if(!confirm('Excluir DEFINITIVAMENTE o colaborador "'+nome+'" (matrícula '+u.matricula+')?\n\nIsso apaga o cadastro, os pontos, todos os envios e a conversa. NÃO dá para desfazer.')) return;
+        const conf = prompt('Para confirmar, digite a matrícula do colaborador ('+u.matricula+'):');
+        if(conf === null) return;
+        del.disabled = true; del.textContent = 'Excluindo…';
+        try{
+          await api('action=userDelete', { method:'POST', body: JSON.stringify({ matricula: u.matricula, confirm: conf }) });
+          alert('Colaborador excluído.');
+          $('vPessoas').innerHTML=''; await loadAll(); renderPessoas();
+        }catch(err){ alert(err.message); del.disabled=false; del.textContent='🗑️ Excluir colaborador'; }
+      };
       document.querySelectorAll('[data-doc]').forEach(b=> b.onclick = ()=> viewDoc(b.dataset.doc, b));
       document.querySelectorAll('[data-anular]').forEach(b=> b.onclick = async ()=>{
         const motivo = prompt('Anular esta missão? Os pontos que ela deu serão descontados.\n\nMotivo (opcional):');
@@ -861,6 +916,148 @@
     catch(err){ alert(err.message); }
   }
 
+  /* ======================= BACKUP / RECUPERAÇÃO ======================= */
+  function baixarJSON(data, nome){
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = nome;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  }
+
+  async function renderBackup(){
+    $('vBackup').innerHTML = '<div class="panel"><div class="empty">Carregando…</div></div>';
+    try{
+      const j = await api('action=backupList');
+      const backups = j.backups || [];
+      $('vBackup').innerHTML =
+        // Recuperar
+        '<div class="panel"><div class="panel-head"><strong>Recuperar backup</strong></div><div class="pbody">'+
+          '<div class="callout danger">⚠️ A recuperação <b>sobrescreve</b> os dados atuais pelos do arquivo. O que existir só no sistema (e não no arquivo) é mantido. Faça um backup completo antes, por segurança.</div>'+
+          '<label>Arquivo de backup (.json)</label>'+
+          '<input type="file" id="rsFile" accept="application/json">'+
+          '<div id="rsInfo" class="rsinfo"></div>'+
+          '<label for="rsConfirm" style="margin-top:12px">Para confirmar, digite <b>RESTAURAR</b></label>'+
+          '<input type="text" id="rsConfirm" placeholder="RESTAURAR" autocomplete="off">'+
+          '<div style="margin-top:14px"><button class="btn danger" id="rsGo" disabled>Recuperar agora</button>'+
+            '<span id="rsMsg" style="margin-left:12px;font-size:13px;color:var(--muted)"></span></div>'+
+        '</div></div>'+
+        // Snapshots diários
+        '<div class="panel"><div class="panel-head"><strong>Backups automáticos diários</strong>'+
+          '<button class="rowbtn" id="bkNow">Gerar agora</button></div><div class="pbody">'+
+          '<div class="callout">O sistema guarda automaticamente os <b>últimos 7 dias</b>. Baixe uma cópia para fora do sistema de vez em quando — assim você fica protegido até de uma falha do banco.</div>'+
+          (backups.length ? '<table><thead><tr><th>Dia</th><th>Registros</th><th>Tamanho</th><th></th></tr></thead><tbody>'+
+            backups.map(b=>'<tr><td><b>'+esc(b.dia)+'</b></td><td>'+(b.totalChaves||'—')+'</td>'+
+            '<td>'+((b.tamanho/1024)|0)+' KB</td>'+
+            '<td><button class="rowbtn bkdl" data-bk="'+esc(b.key)+'">Baixar</button></td></tr>').join('')+
+            '</tbody></table>'
+            : '<div class="empty">Nenhum backup automático ainda. O primeiro roda no próximo horário agendado (ou clique em "Gerar agora").</div>')+
+        '</div></div>';
+
+      // Recuperar: lê o arquivo
+      let dumpCarregado = null;
+      const validar = ()=>{ $('rsGo').disabled = !(dumpCarregado && $('rsConfirm').value.trim().toUpperCase()==='RESTAURAR'); };
+      $('rsFile').onchange = e=>{
+        const f = e.target.files[0]; dumpCarregado = null; $('rsInfo').innerHTML=''; validar();
+        if(!f) return;
+        const rd = new FileReader();
+        rd.onload = ()=>{
+          try{
+            const d = JSON.parse(rd.result);
+            if(!d.dados) throw new Error('não parece um backup completo');
+            dumpCarregado = d;
+            const nColab = Object.keys(d.dados).filter(k=>k.startsWith('user:')).length;
+            $('rsInfo').innerHTML = '<div class="rsok">✓ Arquivo lido: '+ (d.totalChaves||'?') +' registros · '+nColab+' colaborador(es)'+
+              (d.exportadoEm ? ' · gerado em '+new Date(d.exportadoEm).toLocaleString('pt-BR') : '') +'</div>';
+          }catch(err){ $('rsInfo').innerHTML = '<div class="rserr">✗ Arquivo inválido: '+esc(err.message)+'</div>'; }
+          validar();
+        };
+        rd.readAsText(f);
+      };
+      $('rsConfirm').oninput = validar;
+      $('rsGo').onclick = async ()=>{
+        if(!confirm('Confirmar a recuperação? Os dados atuais serão sobrescritos pelos do arquivo.')) return;
+        const b=$('rsGo'); b.disabled=true; b.textContent='Recuperando…';
+        try{
+          const r = await api('action=restore', { method:'POST', body: JSON.stringify({ dump: dumpCarregado }) });
+          $('rsMsg').textContent = '✓ '+ (r.restauradas||0) +' registros recuperados. Recarregando…';
+          setTimeout(()=>location.reload(), 1500);
+        }catch(err){ $('rsMsg').textContent = err.message; b.disabled=false; b.textContent='Recuperar agora'; }
+      };
+
+      // Snapshots
+      $('bkNow').onclick = async ()=>{
+        const b=$('bkNow'); b.disabled=true; b.textContent='Gerando…';
+        try{ await api('action=backupNow', { method:'POST', body: JSON.stringify({}) }); renderBackup(); }
+        catch(err){ alert(err.message); b.disabled=false; b.textContent='Gerar agora'; }
+      };
+      document.querySelectorAll('.bkdl').forEach(b=> b.onclick = async ()=>{
+        b.disabled=true; const t=b.textContent; b.textContent='Baixando…';
+        try{
+          const dump = await api('action=backupGet&bkey='+encodeURIComponent(b.dataset.bk));
+          baixarJSON(dump, b.dataset.bk.replace(':','_')+'.json');
+        }catch(err){ alert(err.message); }
+        finally{ b.disabled=false; b.textContent=t; }
+      });
+    }catch(err){ $('vBackup').innerHTML = '<div class="panel"><div class="empty">'+esc(err.message)+'</div></div>'; }
+  }
+  /* ======================= BACKUP FIM ======================= */
+
+  /* ======================= NOVIDADES ======================= */
+  const EMOJIS = ['📣','🎯','🛟','✏️','📚','🏅','💰','🎉','🔔','✅','🚀','💡'];
+  async function renderNovidades(){
+    $('vNovidades').innerHTML = '<div class="panel"><div class="empty">Carregando…</div></div>';
+    try{
+      const j = await api('action=news');
+      const news = j.news || [];
+      $('vNovidades').innerHTML =
+        '<div class="panel"><div class="panel-head"><strong>Publicar novidade</strong></div><div class="pbody">'+
+          '<div class="callout">O que você publicar aqui aparece no sininho 🔔 de todos os colaboradores, com aviso de "novo".</div>'+
+          '<label>Emoji</label><div class="emojirow" id="emojiRow">'+
+            EMOJIS.map((e,i)=>'<button type="button" class="emojibtn'+(i===0?' on':'')+'" data-emoji="'+e+'">'+e+'</button>').join('')+
+          '</div>'+
+          '<label for="nvTitulo">Título</label><input type="text" id="nvTitulo" maxlength="120" placeholder="Ex.: Cadastre suas dívidas com a taxa de juros">'+
+          '<label for="nvTexto">Texto (opcional)</label><textarea id="nvTexto" rows="3" maxlength="600" placeholder="Explique em uma ou duas frases o que mudou."></textarea>'+
+          '<label for="nvCta">Botão "ver agora" (opcional)</label>'+
+          '<select id="nvCta"><option value="">Sem botão</option><option value="missoes">Ir para Missões</option>'+
+            '<option value="aprender">Ver aulas</option><option value="premios">Ver prêmios</option><option value="chat">Falar com o Orientador</option></select>'+
+          '<div style="margin-top:14px"><button class="btn" id="nvPublicar">Publicar novidade</button>'+
+            '<span id="nvMsg" style="margin-left:12px;font-size:13px;color:var(--muted)"></span></div>'+
+        '</div></div>'+
+        '<div class="panel"><div class="panel-head"><strong>Novidades publicadas</strong><span class="hint">'+news.length+'</span></div><div class="pbody">'+
+          (news.length ? news.map(n=>
+            '<div class="nvrow"><span class="nvemoji">'+esc(n.emoji||'📣')+'</span>'+
+            '<div class="nvinfo"><div class="nvt">'+esc(n.titulo)+'</div>'+
+            (n.texto?'<div class="nvd">'+esc(n.texto)+'</div>':'')+
+            '<div class="nvm">'+new Date(n.createdAt).toLocaleDateString('pt-BR')+(n.cta?' · com botão':'')+'</div></div>'+
+            '<button class="rowbtn del" data-nvdel="'+esc(n.id)+'">Excluir</button></div>').join('')
+            : '<div class="empty">Nenhuma novidade publicada ainda.</div>')+
+        '</div></div>';
+
+      let emoji = EMOJIS[0];
+      document.querySelectorAll('.emojibtn').forEach(b=> b.onclick = ()=>{
+        document.querySelectorAll('.emojibtn').forEach(x=>x.classList.remove('on'));
+        b.classList.add('on'); emoji = b.dataset.emoji;
+      });
+      $('nvPublicar').onclick = async ()=>{
+        const titulo = $('nvTitulo').value.trim();
+        if(!titulo){ $('nvMsg').textContent = 'Escreva um título.'; return; }
+        const b=$('nvPublicar'); b.disabled=true; b.textContent='Publicando…';
+        try{
+          await api('action=newsPublish', { method:'POST', body: JSON.stringify({
+            emoji, titulo, texto: $('nvTexto').value.trim(), cta: $('nvCta').value }) });
+          renderNovidades();
+        }catch(err){ $('nvMsg').textContent = err.message; b.disabled=false; b.textContent='Publicar novidade'; }
+      };
+      document.querySelectorAll('[data-nvdel]').forEach(b=> b.onclick = async ()=>{
+        if(!confirm('Excluir esta novidade? Ela some do sininho dos colaboradores.')) return;
+        try{ await api('action=newsDelete', { method:'POST', body: JSON.stringify({ id: b.dataset.nvdel }) }); renderNovidades(); }
+        catch(err){ alert(err.message); }
+      });
+    }catch(err){ $('vNovidades').innerHTML = '<div class="panel"><div class="empty">'+esc(err.message)+'</div></div>'; }
+  }
+  /* ======================= NOVIDADES FIM ======================= */
+
   /* ======================= MÓDULOS (pontuação) ======================= */
   async function renderModConfig(){
     $('vModulos').innerHTML = '<div class="panel"><div class="empty">Carregando…</div></div>';
@@ -1131,7 +1328,11 @@
       $('vEspeciais').style.display = v==='especiais' ? 'block':'none';
       $('vAulas').style.display   = v==='aulas'   ? 'block':'none';
       $('vModulos').style.display = v==='modulos' ? 'block':'none';
+      $('vNovidades').style.display = v==='novidades' ? 'block':'none';
+      $('vBackup').style.display = v==='backup' ? 'block':'none';
       if(v==='modulos') renderModConfig();
+      if(v==='novidades') renderNovidades();
+      if(v==='backup') renderBackup();
       $('vPremios').style.display = v==='premios' ? 'block':'none';
       if(v==='pessoas') renderPessoas();
     };

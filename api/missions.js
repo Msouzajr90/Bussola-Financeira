@@ -13,7 +13,7 @@ import crypto from 'node:crypto';
 import {
   sessionUser, saveUser, saveSubmission, listSubmissions,
   saveFile, getPrizes, customFor, countUsers, getSubmission, deleteSubmission,
-  getModuleConfig, dbReady,
+  getModuleConfig, getNews, dbReady,
 } from '../lib/store.js';
 import {
   publicCatalog, catalogFor, findMission, levelFor, STREAK_BONUS, publicUser,
@@ -335,13 +335,17 @@ export default async function handler(req, res) {
 
   /* ---------------- Estado ---------------- */
   if (req.method === 'GET') {
-    const [subs, prizes, custom, comunidade, modCfg] = await Promise.all([
+    const [subs, prizes, custom, comunidade, modCfg, news] = await Promise.all([
       listSubmissions({ matricula: user.matricula, limit: 150 }),
       getPrizes(),
       customFor(user.matricula),
       countUsers(),
       getModuleConfig(),
+      getNews(),
     ]);
+
+    const seen = user.newsSeen || 0;
+    const newsUnread = news.filter(n => (n.createdAt || 0) > seen).length;
 
     // Catálogo só com os módulos liberados para esta pessoa.
     const tracks = catalogFor(user);
@@ -374,6 +378,9 @@ export default async function handler(req, res) {
       moduleBonus: user.moduleBonus || {},
       dividas: user.dividas || [],
       planoQuitacao: user.planoQuitacao || null,
+      news,
+      newsUnread,
+      newsSeen: seen,
       tracks,
       prizes,
       comunidade,
@@ -390,6 +397,13 @@ export default async function handler(req, res) {
   /* ---------------- Envio ---------------- */
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+
+    /* ---------------- Marcar novidades como lidas ---------------- */
+    if (body.action === 'newsSeen') {
+      user.newsSeen = Date.now();
+      await saveUser(user);
+      return res.status(200).json({ ok: true, newsSeen: user.newsSeen });
+    }
 
     /* ---------------- Excluir um objetivo ---------------- */
     // Os pontos daquele objetivo são devolvidos, para não virar farm de pontos
