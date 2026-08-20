@@ -100,14 +100,34 @@ function computeObjectiveMath(data) {
 }
 
 // Orçamento da pessoa (a partir da missão de orçamento): renda, gastos e sobra.
-function deriveBudget(subs) {
-  const s = subs.find(x => x.missionId === 'orc_montar' && x.data);
-  if (!s) return null;
-  const d = s.data;
+const BUDGET_CATS = ['moradia', 'contas', 'alimentacao', 'transporte', 'parcelas', 'outros'];
+
+const MESES_PT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+function mesLabel(mes) {
+  const [a, m] = String(mes).split('-');
+  return `${MESES_PT[(+m || 1) - 1]}/${a}`;
+}
+
+function budgetFromEntry(d) {
   const renda = num(d.renda);
-  const gastos = ['moradia', 'contas', 'alimentacao', 'transporte', 'parcelas', 'outros']
-    .reduce((a, k) => a + num(d[k]), 0);
+  const gastos = BUDGET_CATS.reduce((a, k) => a + num(d[k]), 0);
   return { renda, gastos: Math.round(gastos), sobra: Math.round(renda - gastos) };
+}
+
+// Orçamento "atual" = realizado mais recente; senão planejado mais recente; senão legado.
+function currentBudget(orcamentos, subs) {
+  const orcs = Array.isArray(orcamentos) ? orcamentos : [];
+  const sortDesc = arr => arr.slice().sort((a, b) => (a.mes < b.mes ? 1 : -1));
+  const real = sortDesc(orcs.filter(o => o.tipo === 'realizado'))[0];
+  const plan = sortDesc(orcs.filter(o => o.tipo === 'planejado'))[0];
+  const e = real || plan;
+  if (e) return budgetFromEntry(e);
+  const legacy = (subs || []).find(x => x.missionId === 'orc_montar' && x.data);
+  return legacy ? budgetFromEntry(legacy.data) : null;
+}
+
+function deriveBudget(orcamentos, subs) {
+  return currentBudget(orcamentos, subs);
 }
 
 // Metas de orçamento futuro (missão orc_metas): renda e gastos que a pessoa quer ter.
@@ -127,8 +147,8 @@ function deriveFutureBudget(subs) {
 }
 
 // Renda: do orçamento, ou do diagnóstico como fallback.
-function deriveIncome(subs) {
-  const b = deriveBudget(subs);
+function deriveIncome(orcamentos, subs) {
+  const b = currentBudget(orcamentos, subs);
   if (b && b.renda > 0) return b.renda;
   const s = subs.find(x => x.missionId === 'diag_inicial' && x.data && x.data.renda);
   return s ? num(s.data.renda) : 0;
@@ -254,12 +274,12 @@ ${contas}`;
 //  decide se ele é factível, cabe no orçamento e não se sobrepõe.
 //  exceptId: ao editar, ignora o próprio objetivo nas comparações.
 // ----------------------------------------------------------------------------
-async function assessObjective({ matricula, data, exceptId, checkLimit }) {
+async function assessObjective({ matricula, data, exceptId, checkLimit, orcamentos }) {
   const math = computeObjectiveMath(data);
   const subsAll = await listSubmissions({ matricula, limit: 200 });
-  const budget = deriveBudget(subsAll);
+  const budget = deriveBudget(orcamentos, subsAll);
   const future = deriveFutureBudget(subsAll);
-  const income = deriveIncome(subsAll);
+  const income = deriveIncome(orcamentos, subsAll);
   const existentes = activeObjectives(subsAll, exceptId);
 
   if (checkLimit && existentes.length >= 3) {
@@ -377,6 +397,8 @@ export default async function handler(req, res) {
       modulePoints,
       moduleBonus: user.moduleBonus || {},
       dividas: user.dividas || [],
+      orcamentos: user.orcamentos || [],
+      patrimonio: user.patrimonio || [],
       planoQuitacao: user.planoQuitacao || null,
       news,
       newsUnread,
@@ -431,7 +453,7 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'Objetivo não encontrado.' });
       }
       const novo = body.data || {};
-      const av = await assessObjective({ matricula: user.matricula, data: novo, exceptId: alvo.id });
+      const av = await assessObjective({ matricula: user.matricula, data: novo, exceptId: alvo.id, orcamentos: user.orcamentos });
       if (av.blocked) return res.status(200).json({ ok: false, message: av.message });
       if (!av.avaliacao.pontuou) {
         return res.status(200).json({ ok: true, pontuou: false, editado: false, objetivo: av.avaliacao });
@@ -451,7 +473,7 @@ export default async function handler(req, res) {
       const f = findMission(body.missionId);
       if (!f) return res.status(404).json({ error: 'Missão não encontrada.' });
       const mission = f.mission;
-      if (!['form', 'perfil', 'dividas'].includes(mission.type)) {
+      if (!['form', 'perfil', 'dividas', 'patrimonio'].includes(mission.type)) {
         return res.status(400).json({ error: 'Esta missão não pode ser editada.' });
       }
       const subs = await listSubmissions({ matricula: user.matricula, limit: 200 });
@@ -459,7 +481,28 @@ export default async function handler(req, res) {
       if (!alvo) return res.status(404).json({ error: 'Você ainda não concluiu esta missão.' });
       const d = body.data || {};
 
-      if (mission.type === 'perfil') {
+      if (mission.id === 'orc_planejado' || mission.id === 'orc_realizado') {
+        const tipo = mission.id === 'orc_planejado' ? 'planejado' : 'realizado';
+        const mes = alvo.data.mes || d.mes || new Date().toISOString().slice(0, 7);
+        const check = await validateForm(mission, d);
+        if (!check.valid) return res.status(200).json({ ok: false, message: check.feedback || 'Confira o preenchimento.' });
+        const entry = { mes, tipo, renda: num(d.renda), createdAt: Date.now() };
+        BUDGET_CATS.forEach(k => { entry[k] = num(d[k]); });
+        user.orcamentos = user.orcamentos || [];
+        const i = user.orcamentos.findIndex(o => o.mes === mes && o.tipo === tipo);
+        if (i >= 0) user.orcamentos[i] = entry; else user.orcamentos.push(entry);
+        alvo.data = { mes, tipo, renda: d.renda, ...Object.fromEntries(BUDGET_CATS.map(k => [k, d[k]])) };
+      } else if (mission.type === 'patrimonio') {
+        const lista = Array.isArray(d.bens) ? d.bens : [];
+        if (!lista.length) return res.status(200).json({ ok: false, message: 'Adicione ao menos um bem.' });
+        const TIPOS = ['Imóvel', 'Veículo', 'Dinheiro guardado', 'Investimentos', 'Outros'];
+        user.patrimonio = lista.slice(0, 30).map(b => {
+          const valor = num(b.valor), deve = num(b.deve);
+          return { id: 'pt_' + crypto.randomUUID().slice(0, 8), tipo: TIPOS.includes(b.tipo) ? b.tipo : 'Outros', descricao: String(b.descricao || '').slice(0, 100), valor, deve, liquido: Math.round(valor - deve) };
+        });
+        alvo.data = { bens: user.patrimonio.length };
+        alvo.note = `${user.patrimonio.length} bem(ns) cadastrado(s). (editado)`;
+      } else if (mission.type === 'perfil') {
         const nasc = String(d.nascimento || '').trim();
         if (!nasc) return res.status(200).json({ ok: false, message: 'Informe sua data de nascimento.' });
         const tem = String(d.filhos || 'Não') === 'Sim';
@@ -615,6 +658,29 @@ export default async function handler(req, res) {
       sub.note = `${norm.length} dívida(s) mapeada(s).`;
     }
 
+    /* --- PATRIMÔNIO: lista de bens (com quanto ainda deve) --- */
+    if (mission.type === 'patrimonio') {
+      const lista = Array.isArray(data.bens) ? data.bens : [];
+      if (!lista.length) return res.status(200).json({ ok: false, message: 'Adicione ao menos um bem.' });
+      const TIPOS = ['Imóvel', 'Veículo', 'Dinheiro guardado', 'Investimentos', 'Outros'];
+      user.patrimonio = lista.slice(0, 30).map(b => {
+        const valor = num(b.valor);
+        const deve = num(b.deve);
+        return {
+          id: 'pt_' + crypto.randomUUID().slice(0, 8),
+          tipo: TIPOS.includes(b.tipo) ? b.tipo : 'Outros',
+          descricao: String(b.descricao || '').slice(0, 100),
+          valor,
+          deve: Math.min(deve, valor > 0 ? deve : deve), // guarda o que informou
+          liquido: Math.round(valor - deve),
+        };
+      });
+      sub.status = 'aprovado';
+      sub.points = mission.points;
+      sub.data = { bens: user.patrimonio.length };
+      sub.note = `${user.patrimonio.length} bem(ns) cadastrado(s).`;
+    }
+
     /* --- QUIZ: correção automática --- */
     if (mission.type === 'quiz') {
       const answers = Array.isArray(data.answers) ? data.answers : [];
@@ -635,7 +701,7 @@ export default async function handler(req, res) {
     let objetivoAvaliacao = null, orcamentoResumo = null;
     if (mission.type === 'form') {
       if (mission.id === 'obj_criar') {
-        const av = await assessObjective({ matricula: user.matricula, data, checkLimit: true });
+        const av = await assessObjective({ matricula: user.matricula, data, checkLimit: true, orcamentos: user.orcamentos });
         if (av.blocked) return res.status(200).json({ ok: false, message: av.message });
 
         // Não pontua: NÃO salva o objetivo, devolve o feedback para a pessoa ajustar.
@@ -654,25 +720,56 @@ export default async function handler(req, res) {
           ? 'Objetivo viável, mas aperta o orçamento.'
           : 'Objetivo viável e dentro do orçamento.';
         objetivoAvaliacao = av.avaliacao;
-      } else if (mission.id === 'orc_montar') {
-        // O orçamento SEMPRE é aceito, mesmo no vermelho. O estouro vira destaque.
+      } else if (mission.id === 'orc_planejado' || mission.id === 'orc_realizado') {
+        // Orçamento mensal: planejado (início do mês) e realizado (fim do mês).
+        const tipo = mission.id === 'orc_planejado' ? 'planejado' : 'realizado';
+        const mes = (typeof body.mes === 'string' && /^\d{4}-\d{2}$/.test(body.mes))
+          ? body.mes : new Date().toISOString().slice(0, 7);
+
         const check = await validateForm(mission, data);
         if (!check.valid) {
           return res.status(200).json({ ok: false, message: check.feedback || 'Confira o preenchimento.' });
         }
-        const b = deriveBudget([{ missionId: 'orc_montar', data }]);
-        const cats = ['moradia', 'contas', 'alimentacao', 'transporte', 'parcelas', 'outros'];
-        const zerados = ['renda', ...cats].filter(k => num(data[k]) === 0);
+        // Realizado exige o planejado do mesmo mês.
+        if (tipo === 'realizado' && !(user.orcamentos || []).some(o => o.mes === mes && o.tipo === 'planejado')) {
+          return res.status(200).json({ ok: false, message: 'Antes do realizado, faça o orçamento planejado deste mês.' });
+        }
+
+        const entry = { mes, tipo, renda: num(data.renda), createdAt: Date.now() };
+        BUDGET_CATS.forEach(k => { entry[k] = num(data[k]); });
+        const jaExiste = (user.orcamentos || []).some(o => o.mes === mes && o.tipo === tipo);
+        user.orcamentos = user.orcamentos || [];
+        const idx = user.orcamentos.findIndex(o => o.mes === mes && o.tipo === tipo);
+        if (idx >= 0) user.orcamentos[idx] = entry; else user.orcamentos.push(entry);
+
+        const b = budgetFromEntry(entry);
+        const zerados = ['renda', ...BUDGET_CATS].filter(k => num(data[k]) === 0);
+        let comparado = null;
+        if (tipo === 'realizado') {
+          const plan = (user.orcamentos || []).find(o => o.mes === mes && o.tipo === 'planejado');
+          if (plan) {
+            const pb = budgetFromEntry(plan);
+            comparado = { planGastos: pb.gastos, planRenda: pb.renda, difGastos: b.gastos - pb.gastos, difRenda: b.renda - pb.renda };
+          }
+        }
         orcamentoResumo = {
-          renda: b.renda, gastos: b.gastos, saldo: b.sobra,
-          estouro: b.sobra < 0, excesso: Math.abs(Math.min(0, b.sobra)),
-          zerados,
+          tipo, mes, renda: b.renda, gastos: b.gastos, saldo: b.sobra,
+          estouro: b.sobra < 0, excesso: Math.abs(Math.min(0, b.sobra)), zerados, comparado,
         };
+        sub.data = { mes, tipo, renda: data.renda, ...Object.fromEntries(BUDGET_CATS.map(k => [k, data[k]])) };
+
+        if (jaExiste) {
+          // Reenvio do mesmo mês = edição, não pontua de novo.
+          await saveUser(user);
+          return res.status(200).json({
+            ok: true, pontuou: false, earned: 0, orcamento: orcamentoResumo,
+            message: `Orçamento ${tipo} de ${mesLabel(mes)} atualizado.`,
+            user: publicUser(user),
+          });
+        }
         sub.status = 'aprovado';
         sub.points = mission.points;
-        sub.note = b.sobra < 0
-          ? `Orçamento estourado em R$ ${Math.abs(b.sobra)}.`
-          : `Sobra de R$ ${b.sobra}/mês.`;
+        sub.note = `${tipo === 'planejado' ? 'Planejado' : 'Realizado'} ${mes}` + (b.sobra < 0 ? ` (estouro R$ ${Math.abs(b.sobra)})` : '');
       } else if (mission.id === 'orc_metas') {
         // Valida se a proposta orçamentária é coerente.
         const brl = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR');
@@ -722,7 +819,7 @@ export default async function handler(req, res) {
         // Reserva: recomenda 3x as despesas do orçamento (recomendação forte).
         if (mission.id === 'res_meta') {
           const subsAll = await listSubmissions({ matricula: user.matricula, limit: 200 });
-          const budget = deriveBudget(subsAll);
+          const budget = deriveBudget(user.orcamentos, subsAll);
           const recomendado = budget ? budget.gastos * 3 : null;
           const meta = num(data.meta);
           orcamentoResumo = {

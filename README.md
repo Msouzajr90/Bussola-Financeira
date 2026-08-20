@@ -219,6 +219,22 @@ e sempre editável):
 O preenchimento só acontece na primeira vez e apenas em campos vazios — nunca sobrescreve o que a
 pessoa digitou, e ela pode ajustar tudo antes de enviar.
 
+## Orçamento mensal, painel do colaborador e patrimônio
+
+- **Orçamento mensal (planejado x realizado):** o módulo Orçamento tem duas missões que se repetem
+  todo mês — **Orçamento planejado** (início do mês) e **Orçamento realizado** (fim do mês, exige o
+  planejado do mesmo mês). Cada mês fica registrado (histórico em `user.orcamentos`). Refazer o mês
+  atual conta como edição (não pontua de novo). O realizado mostra a comparação com o planejado.
+  Reserva, objetivos e reaproveitamento passaram a usar o **realizado mais recente** (ou o planejado,
+  se ainda não houver realizado).
+- **Meu painel (dashboard):** nova aba no app com indicadores (sobra do mês, taxa de poupança,
+  patrimônio líquido, dívida total, com evolução vs. mês anterior) e três gráficos SVG nativos:
+  Receita x Despesa (linha), Planejado x Realizado (barras) e Evolução das despesas por categoria
+  (barras empilhadas). Mostra um aviso amigável enquanto não há histórico.
+- **Módulo Patrimônio:** novo módulo (liberável pelo gestor) com a missão "Cadastre seu patrimônio"
+  — lista de bens com tipo, descrição, valor e **quanto ainda deve** (financiamento). Alimenta o
+  patrimônio líquido do painel (bens − o que deve nos bens − dívidas). O gestor vê os bens na ficha.
+
 ---
 
 ## Publicação

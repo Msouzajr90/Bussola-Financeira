@@ -494,6 +494,9 @@
       // Plano de quitação (dívidas cadastradas)
       h += renderPlanoFicha(u);
 
+      // Patrimônio
+      h += renderPatrimonioFicha(u);
+
       // Missões cumpridas, trilha a trilha, com o que foi respondido
       h += j.trilhas.map(t =>
         '<div class="trackname">'+esc(t.name)+'</div>'+
@@ -609,6 +612,21 @@
       try{ await api('action=moduleApprove', { method:'POST', body: JSON.stringify({ matricula:u.matricula }) }); openFicha(u.matricula); }
       catch(err){ alert(err.message); ap.disabled=false; }
     };
+  }
+
+  /* ---------- Patrimônio na ficha ---------- */
+  function renderPatrimonioFicha(u){
+    const brl = n => 'R$ ' + Number(n||0).toLocaleString('pt-BR');
+    const bens = u.patrimonio || [];
+    if(!bens.length) return '';
+    const totalBens = bens.reduce((a,b)=>a+(b.valor||0),0);
+    const totalDeve = bens.reduce((a,b)=>a+(b.deve||0),0);
+    return '<div class="panel"><div class="panel-head"><strong>Patrimônio</strong>'+
+      '<span class="hint">líquido '+brl(totalBens-totalDeve)+'</span></div><div class="pbody">'+
+      '<table><thead><tr><th>Tipo</th><th>Descrição</th><th>Valor</th><th>Ainda deve</th><th>Líquido</th></tr></thead><tbody>'+
+      bens.map(b=>'<tr><td>'+esc(b.tipo||'—')+'</td><td>'+esc(b.descricao||'—')+'</td><td>'+brl(b.valor)+'</td>'+
+        '<td>'+(b.deve?brl(b.deve):'—')+'</td><td>'+brl((b.valor||0)-(b.deve||0))+'</td></tr>').join('')+
+      '</tbody></table></div></div>';
   }
 
   /* ---------- Plano de quitação na ficha ---------- */

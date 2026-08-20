@@ -301,6 +301,22 @@
   .reuse-note{ background:#EAF6EF; border:1px solid #BFE3CE; color:#0F6E56; border-radius:10px;
     padding:10px 13px; font-size:12.5px; line-height:1.5; margin-bottom:14px; }
 
+  /* Dashboard */
+  .dsec{ font-family:'Archivo',sans-serif; font-weight:800; font-size:16px; color:var(--blue-deep); margin:4px 2px 12px; }
+  .cards{ display:grid; grid-template-columns:1fr 1fr; gap:11px; margin-bottom:16px; }
+  .cards .card{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 15px; box-shadow:var(--shadow); }
+  .cards .lbl{ font-size:12px; color:var(--muted); font-weight:500; }
+  .cards .val{ font-family:'Archivo',sans-serif; font-weight:800; font-size:20px; margin-top:5px; }
+  .cards .sub{ font-size:11px; margin-top:3px; }
+  .cards .up{ color:#1D9E75; } .cards .down{ color:#C0392B; } .cards .neu{ color:var(--muted); }
+  .dpanel{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px; box-shadow:var(--shadow); margin-bottom:14px; }
+  .dpanel h3{ font-family:'Archivo',sans-serif; font-weight:700; font-size:14px; color:var(--blue-deep); margin:0 0 3px; }
+  .dpanel .dcap{ font-size:12px; color:var(--muted); margin-bottom:10px; }
+  .dpanel svg{ width:100%; height:auto; display:block; }
+  .dleg{ display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:11.5px; color:var(--muted); }
+  .dleg span{ display:inline-flex; align-items:center; gap:6px; }
+  .ddot{ width:10px; height:10px; border-radius:3px; display:inline-block; }
+
   .nav{ display:flex; gap:8px; margin-bottom:16px; }
   .nav button{ flex:1; padding:11px; border:1px solid var(--line); background:var(--surface); border-radius:11px;
     font-size:14px; font-weight:600; color:var(--muted); cursor:pointer; }
@@ -530,6 +546,7 @@
 
     <div class="nav">
       <button type="button" class="on" data-view="missoes">Missões</button>
+      <button type="button" data-view="painel">Painel</button>
       <button type="button" data-view="feitas">Concluídas</button>
       <button type="button" data-view="aprender">Aprender</button>
       <button type="button" data-view="chat">Orientador</button>
@@ -564,6 +581,7 @@
 
     <!-- Prêmios -->
     <div id="vPremios" style="display:none"></div>
+    <div id="vPainel" style="display:none"></div>
 
     <p class="foot">
       <b>Uma iniciativa Marco Souza × Engeval.</b><br>
@@ -622,7 +640,7 @@
 <script>
 (function(){
   const $ = id => document.getElementById(id);
-  let token = null, state = null, chatHist = [], busy = false, mode = 'login', current = null, fileData = null, fileName = '', pendingLevelUp = null, lastObjData = null, perfilFoto = null, dvItems = [], editandoMissao = null, pendingEditData = null;
+  let token = null, state = null, chatHist = [], busy = false, mode = 'login', current = null, fileData = null, fileName = '', pendingLevelUp = null, lastObjData = null, perfilFoto = null, dvItems = [], editandoMissao = null, pendingEditData = null, ptItems = [];
 
   const OPTS = ['Tenho uma dúvida sobre dinheiro','Quero organizar minhas finanças','Estou com dívidas',
                 'Quero começar a guardar dinheiro','Quero fazer um planejamento','Quero comparar duas opções'];
@@ -700,7 +718,7 @@
     $('userbox').style.display='flex';
     $('uName').textContent = state.user.nome;
     $('uMat').textContent = 'Matrícula ' + state.user.matricula;
-    renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes(); renderNews();
+    renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes(); renderNews(); renderDash();
     if(!chatHist.length) initChat();
   }
 
@@ -721,6 +739,125 @@
     renderNextStep();
     renderImpact();
     renderBelong();
+  }
+
+  /* ========================= DASHBOARD ========================= */
+  const SVGNS='http://www.w3.org/2000/svg';
+  const svgEl=(t,a)=>{const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+
+  function dashData(){
+    // Séries mensais: usa realizado; se não houver no mês, usa planejado.
+    const orcs = state.orcamentos||[];
+    const meses = [...new Set(orcs.map(o=>o.mes))].sort();
+    const serie = meses.map(mes=>{
+      const r = orcs.find(o=>o.mes===mes && o.tipo==='realizado');
+      const p = orcs.find(o=>o.mes===mes && o.tipo==='planejado');
+      const e = r || p;
+      const renda = numBR(e.renda);
+      const cats = {}; let gastos=0;
+      BCATS.forEach(k=>{ cats[k]=numBR(e[k]); gastos+=cats[k]; });
+      return { mes, renda, gastos, saldo:renda-gastos, cats, temReal:!!r, plan:p, real:r };
+    });
+    return { meses, serie };
+  }
+
+  function renderDash(){
+    const el = $('vPainel'); if(!el) return;
+    const { serie } = dashData();
+    const div = (state.dividas||[]);
+    const dividaTotal = div.reduce((a,d)=> a + (numBR(d.valor)||0), 0);
+    const pat = (state.patrimonio||[]);
+    const bens = pat.reduce((a,b)=> a + numBR(b.valor), 0);
+    const deveBens = pat.reduce((a,b)=> a + numBR(b.deve), 0);
+    const patLiquido = Math.round(bens - deveBens - dividaTotal);
+
+    if(!serie.length){
+      el.innerHTML = '<div class="track"><div class="empty">Seu painel ganha vida quando você registra o orçamento. '+
+        'Faça o <b>Orçamento planejado do mês</b> (e, no fim do mês, o realizado) para ver seus gráficos de evolução aqui. 📈</div></div>';
+      return;
+    }
+
+    const ult = serie[serie.length-1];
+    const ant = serie.length>1 ? serie[serie.length-2] : null;
+    const taxaPoup = ult.renda>0 ? Math.round(ult.saldo/ult.renda*100) : 0;
+    const money = n => 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+    const delta = (atual, anterior, invert)=>{
+      if(anterior==null) return '<div class="sub neu">—</div>';
+      const d = atual - anterior; if(d===0) return '<div class="sub neu">igual ao mês anterior</div>';
+      const bom = invert ? d<0 : d>0;
+      return '<div class="sub '+(bom?'up':'down')+'">'+(d>0?'▲':'▼')+' '+money(Math.abs(d))+' vs. mês anterior</div>';
+    };
+
+    el.innerHTML =
+      '<h2 class="dsec">📊 Meu painel — '+mesPt(ult.mes)+'</h2>'+
+      '<div class="cards">'+
+        '<div class="card"><div class="lbl">Sobra do mês</div><div class="val '+(ult.saldo<0?'down':'up')+'">'+(ult.saldo<0?'-':'+')+money(Math.abs(ult.saldo))+'</div>'+(ant?delta(ult.saldo,ant.saldo):'<div class="sub neu">renda − gastos</div>')+'</div>'+
+        '<div class="card"><div class="lbl">Taxa de poupança</div><div class="val" style="color:var(--blue-deep)">'+taxaPoup+'%</div><div class="sub neu">do que entrou, você guardou</div></div>'+
+        '<div class="card"><div class="lbl">Patrimônio líquido</div><div class="val" style="color:var(--blue-deep)">'+money(patLiquido)+'</div><div class="sub neu">'+(pat.length?('bens '+money(bens)+' − dívidas '+money(deveBens+dividaTotal)):'cadastre no módulo Patrimônio')+'</div></div>'+
+        '<div class="card"><div class="lbl">Dívida total</div><div class="val '+(dividaTotal>0?'down':'neu')+'">'+money(dividaTotal)+'</div><div class="sub neu">'+(div.length?div.length+' dívida(s)':'nenhuma cadastrada')+'</div></div>'+
+      '</div>'+
+      '<div class="dpanel"><h3>Receita x Despesa</h3><div class="dcap">O que entrou e o que saiu, mês a mês.</div><svg id="dc1" viewBox="0 0 440 210"></svg>'+
+        '<div class="dleg"><span><i class="ddot" style="background:var(--green)"></i>Receita</span><span><i class="ddot" style="background:var(--red)"></i>Despesa</span></div></div>'+
+      '<div class="dpanel"><h3>Planejado x Realizado — '+mesPt(ult.mes)+'</h3><div class="dcap">Você cumpriu o que planejou?</div><svg id="dc2" viewBox="0 0 440 190"></svg>'+
+        '<div class="dleg"><span><i class="ddot" style="background:var(--cyan)"></i>Planejado</span><span><i class="ddot" style="background:var(--blue-deep)"></i>Realizado</span></div></div>'+
+      '<div class="dpanel"><h3>Evolução das despesas por categoria</h3><div class="dcap">Para onde seu dinheiro foi indo.</div><svg id="dc3" viewBox="0 0 440 230"></svg>'+
+        '<div class="dleg" id="dleg3"></div></div>';
+
+    drawLineChart(serie);
+    drawPlanReal(ult);
+    drawStacked(serie);
+  }
+
+  function drawLineChart(serie){
+    const svg=$('dc1'); if(!svg) return; svg.innerHTML='';
+    const W=440,H=210,pad=40,bottom=H-26;
+    const vals=serie.flatMap(s=>[s.renda,s.gastos]);
+    const max=Math.max(...vals,1)*1.1, min=Math.min(...vals,0)*0.9;
+    const n=serie.length;
+    const x=i=> n<=1 ? (pad+(W-pad-14)/2) : pad + i*(W-pad-14)/(n-1);
+    const y=v=> bottom - (max===min?0.5:(v-min)/(max-min))*(bottom-16);
+    [0,.25,.5,.75,1].forEach(t=>{ const yy=16+t*(bottom-16); svg.appendChild(svgEl('line',{x1:pad,y1:yy,x2:W-14,y2:yy,stroke:'#eef3f7'})); });
+    serie.forEach((s,i)=> svg.appendChild(txt(x(i),H-8,mesPt(s.mes).split('/')[0],'#9fb3c2',10,'middle')));
+    const line=(key,color)=>{ let d=serie.map((s,i)=>(i?'L':'M')+x(i)+' '+y(s[key])).join(' '); if(n>1) svg.appendChild(svgEl('path',{d,fill:'none',stroke:color,'stroke-width':2.5,'stroke-linejoin':'round','stroke-linecap':'round'})); serie.forEach((s,i)=>svg.appendChild(svgEl('circle',{cx:x(i),cy:y(s[key]),r:3.4,fill:color}))); };
+    line('renda','#1D9E75'); line('gastos','#C0392B');
+    function txt(x,y,t,fill,size,anchor){const e=svgEl('text',{x,y,fill,'font-size':size,'text-anchor':anchor||'start','font-family':'Inter'});e.textContent=t;return e;}
+  }
+
+  function drawPlanReal(ult){
+    const svg=$('dc2'); if(!svg) return; svg.innerHTML='';
+    const W=440,H=190,bottom=H-26;
+    const pRenda = ult.plan?numBR(ult.plan.renda):ult.renda;
+    const pGastos = ult.plan?BCATS.reduce((a,k)=>a+numBR(ult.plan[k]),0):ult.gastos;
+    const grupos=[{n:'Receita',p:pRenda,r:ult.renda},{n:'Despesa',p:pGastos,r:ult.gastos}];
+    const max=Math.max(pRenda,pGastos,ult.renda,ult.gastos,1)*1.15;
+    const gw=180,x0=50; const y=v=> bottom - v/max*(bottom-16);
+    [0,.5,1].forEach(t=>{ const yy=16+t*(bottom-16); svg.appendChild(svgEl('line',{x1:40,y1:yy,x2:W-14,y2:yy,stroke:'#eef3f7'})); });
+    grupos.forEach((g,i)=>{ const gx=x0+i*gw, bw=46;
+      svg.appendChild(svgEl('rect',{x:gx,y:y(g.p),width:bw,height:Math.max(0,bottom-y(g.p)),rx:5,fill:'#309CD8'}));
+      svg.appendChild(svgEl('rect',{x:gx+bw+10,y:y(g.r),width:bw,height:Math.max(0,bottom-y(g.r)),rx:5,fill:'#00406B'}));
+      svg.appendChild(txt(gx+bw+5,H-8,g.n,'#6b7a88',12,'middle'));
+      svg.appendChild(txt(gx+bw/2,y(g.p)-5,(g.p/1000).toFixed(1)+'k','#309CD8',10,'middle'));
+      svg.appendChild(txt(gx+bw+10+bw/2,y(g.r)-5,(g.r/1000).toFixed(1)+'k','#00406B',10,'middle'));
+    });
+    function txt(x,y,t,fill,size,anchor){const e=svgEl('text',{x,y,fill,'font-size':size,'text-anchor':anchor,'font-family':'Inter','font-weight':600});e.textContent=t;return e;}
+  }
+
+  function drawStacked(serie){
+    const svg=$('dc3'); if(!svg) return; svg.innerHTML='';
+    const cores={ moradia:'#00406B', contas:'#1E6FA8', alimentacao:'#0078C0', transporte:'#309CD8', parcelas:'#BA7517', outros:'#9fb3c2' };
+    const nomes={ moradia:'Moradia', contas:'Contas', alimentacao:'Alimentação', transporte:'Transporte', parcelas:'Parcelas', outros:'Outros' };
+    const W=440,H=230,bottom=H-26,pad=14;
+    const totais=serie.map(s=>s.gastos);
+    const max=Math.max(...totais,1)*1.1;
+    const n=serie.length, step=(W-pad-16)/n, bw=Math.min(40,step*0.6);
+    const y=v=> bottom - v/max*(bottom-16);
+    [0,.5,1].forEach(t=>{ const yy=16+t*(bottom-16); svg.appendChild(svgEl('line',{x1:pad,y1:yy,x2:W-6,y2:yy,stroke:'#eef3f7'})); });
+    serie.forEach((s,i)=>{ const cx=pad+i*step+step/2; let acc=0;
+      BCATS.forEach(c=>{ const v=s.cats[c]||0; if(v<=0) return; const h=v/max*(bottom-16); svg.appendChild(svgEl('rect',{x:cx-bw/2,y:y(acc+v),width:bw,height:h,fill:cores[c],rx:2})); acc+=v; });
+      const t=svgEl('text',{x:cx,y:H-8,fill:'#9fb3c2','font-size':10,'text-anchor':'middle','font-family':'Inter'}); t.textContent=mesPt(s.mes).split('/')[0]; svg.appendChild(t);
+      if(acc>0){ const tt=svgEl('text',{x:cx,y:y(acc)-4,fill:'#6b7a88','font-size':9.5,'text-anchor':'middle','font-family':'Inter'}); tt.textContent=(acc/1000).toFixed(1)+'k'; svg.appendChild(tt); }
+    });
+    $('dleg3').innerHTML = BCATS.map(c=>'<span><i class="ddot" style="background:'+cores[c]+'"></i>'+nomes[c]+'</span>').join('');
   }
 
   /* ---------- Novidades ---------- */
@@ -847,6 +984,13 @@
 
   /* ---- Impacto concreto e pessoal ---- */
   function money(n){ return 'R$ ' + Number(n||0).toLocaleString('pt-BR'); }
+  const BCATS = ['moradia','contas','alimentacao','transporte','parcelas','outros'];
+  const isBudget = id => id==='orc_planejado' || id==='orc_realizado';
+  function curMonth(){ return new Date().toISOString().slice(0,7); }
+  function mesPt(mes){ const M=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']; const [a,m]=String(mes).split('-'); return M[(+m||1)-1]+'/'+a; }
+  function budgetEntry(tipo, mes){ return (state.orcamentos||[]).find(o=>o.mes===mes && o.tipo===tipo) || null; }
+  function budgetLatest(){ const o=state.orcamentos||[]; const sd=arr=>arr.slice().sort((a,b)=> a.mes<b.mes?1:-1); return sd(o.filter(x=>x.tipo==='realizado'))[0] || sd(o.filter(x=>x.tipo==='planejado'))[0] || null; }
+  function budgetDone(tipo, mes){ mes=mes||curMonth(); return (state.orcamentos||[]).some(o=>o.mes===mes && o.tipo===tipo); }
   function subData(missionId){
     const s = (state.submissions||[]).find(x=>x.missionId===missionId && x.status==='aprovado' && x.data);
     return s ? s.data : null;
@@ -855,10 +999,9 @@
     const itens = [];
 
     // Orçamento organizado
-    const orc = subData('orc_montar');
+    const orc = budgetLatest();
     if(orc){
-      const total = ['moradia','contas','alimentacao','transporte','parcelas','outros']
-        .reduce((a,k)=> a + (parseFloat(orc[k])||0), 0);
+      const total = BCATS.reduce((a,k)=> a + (parseFloat(orc[k])||0), 0);
       const base = parseFloat(orc.renda) || total;
       if(base > 0) itens.push(['📊', money(base), 'organizados no seu orçamento']);
     }
@@ -1044,31 +1187,42 @@
     }
 
     const meta = !!o.meta;
+    const tituloMes = o.mes ? (' — ' + mesPt(o.mes)) : '';
+    const nomeTipo = o.tipo === 'planejado' ? 'Planejado' : (o.tipo === 'realizado' ? 'Realizado' : 'Orçamento');
     $('ofbHead').className = 'ofb-head ' + (o.estouro ? 'orcamento' : 'viavel');
-    $('ofbIc').textContent = o.estouro ? '🚨' : (meta ? '🎯' : '📊');
+    $('ofbIc').textContent = o.estouro ? '🚨' : (meta ? '🎯' : (o.tipo==='realizado' ? '✅' : '📝'));
     $('ofbStatus').textContent = o.estouro
       ? 'Atenção: orçamento estourado'
-      : (meta ? 'Metas registradas!' : 'Orçamento registrado!');
-    $('ofbEarn').textContent = '+' + earned + ' pontos';
+      : (meta ? 'Metas registradas!' : (nomeTipo + tituloMes + ' registrado!'));
+    $('ofbEarn').textContent = (earned>0 ? '+' + earned + ' pontos' : 'Atualizado');
     $('ofbClass').style.display = 'none';
 
     let txt;
     if(o.estouro){
-      txt = 'Seus gastos passam o que entra em ' + brl(o.excesso) + ' por mês. Isso não tira seus pontos — reconhecer é o primeiro passo, e é exatamente por isso que você está aqui. Vamos olhar juntos onde dá para respirar: fale com o Orientador.';
+      txt = 'Seus gastos passam o que entra em ' + brl(o.excesso) + ' por mês. Isso não tira seus pontos — reconhecer é o primeiro passo. Vamos olhar juntos onde dá para respirar: fale com o Orientador.';
     } else if(meta){
       txt = 'Suas metas estão registradas. É por elas que seus objetivos vão ser avaliados daqui pra frente.';
+    } else if(o.tipo === 'realizado'){
+      txt = 'Realizado registrado! Compare com o que você tinha planejado e veja no seu Painel a evolução.';
     } else {
-      txt = 'Orçamento registrado! Agora dá para ver com clareza para onde seu dinheiro está indo.';
+      txt = 'Planejado registrado! No fim do mês, volte para informar o que realmente aconteceu.';
     }
     $('ofbText').textContent = txt;
 
     let num = '<b>Entra:</b> ' + brl(o.renda) + ' &nbsp;·&nbsp; <b>Sai:</b> ' + brl(o.gastos) +
       ' &nbsp;·&nbsp; <b>' + (o.saldo < 0 ? 'Falta' : 'Sobra') + ':</b> ' + brl(Math.abs(o.saldo));
+    // Comparação realizado x planejado
+    if(o.comparado){
+      const dif = o.comparado.difGastos;
+      if(dif > 0) num += '<div class="alerta warn">📊 Você gastou ' + brl(dif) + ' a mais do que tinha planejado neste mês.</div>';
+      else if(dif < 0) num += '<div class="alerta ok">🎉 Você gastou ' + brl(Math.abs(dif)) + ' a menos do que planejou. Mandou bem!</div>';
+      else num += '<div class="alerta ok">🎯 Você gastou exatamente o que planejou. Que controle!</div>';
+    }
     if(o.estouro){
       num += '<div class="alerta bad">🚨 Estouro de ' + brl(o.excesso) + ' por mês. Enquanto isso durar, a dívida cresce.</div>';
     }
     if((o.zerados||[]).length){
-      num += '<div class="alerta warn">⚠️ Você deixou ' + o.zerados.length + ' campo(s) em zero. Se foi de propósito, tudo bem — mas confira se não esqueceu algum valor, porque isso muda a conta.</div>';
+      num += '<div class="alerta warn">⚠️ Você deixou ' + o.zerados.length + ' campo(s) em zero. Se foi de propósito, tudo bem — mas confira se não esqueceu algum valor.</div>';
     }
     $('ofbNum').innerHTML = num;
     $('ofbNum').style.display = 'block';
@@ -1127,7 +1281,7 @@
       await api('/api/missions', { method:'POST', body: JSON.stringify({ action:'objExcluir', id }) });
       toast('Objetivo excluído.');
       state = await api('/api/missions');
-      renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes(); renderNews();
+      renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes(); renderNews(); renderDash();
     }catch(err){ toast(err.message); }
   }
 
@@ -1156,7 +1310,22 @@
           icon = '<div class="m-icon done">✓</div>';
           right = '<span class="m-tag done">Limite atingido (3/3)</span>';
         }
-        const extra = (m.repeatable && feito) ? ' · feita '+feito+'x' : '';
+        // Orçamento mensal: status do mês atual
+        if(isBudget(m.id)){
+          const mes = curMonth();
+          const feitoMes = budgetDone(m.id==='orc_planejado'?'planejado':'realizado', mes);
+          if(feitoMes){
+            icon = '<div class="m-icon done">✓</div>';
+            right = '<span class="m-tag done">Feito ('+mesPt(mes)+')</span><button class="m-edit" data-edit="'+m.id+'">Editar</button>';
+          } else {
+            const bloq = m.id==='orc_realizado' && !budgetDone('planejado', mes);
+            icon = '<div class="m-icon">•</div>';
+            right = bloq
+              ? '<span class="m-tag wait">Faça o planejado antes</span>'
+              : '<button class="m-go" data-m="'+m.id+'">Fazer ('+mesPt(mes)+')</button>';
+          }
+        }
+        const extra = (m.repeatable && feito && !isBudget(m.id)) ? ' · feita '+feito+'x' : '';
         const esp = m.custom ? ' <span class="m-tag esp">Especial</span>' : '';
         return '<div class="mission">'+icon+
           '<div class="m-body"><div class="t">'+esc(m.title)+esp+'</div>'+
@@ -1256,7 +1425,9 @@
     $('vAprender').style.display= v==='aprender'? 'block':'none';
     $('vChat').style.display    = v==='chat'    ? 'block':'none';
     $('vPremios').style.display = v==='premios' ? 'block':'none';
+    $('vPainel').style.display  = v==='painel'  ? 'block':'none';
     if(v==='aprender') loadLessons();
+    if(v==='painel') renderDash();
     window.scrollTo(0,0);
   }
   document.querySelectorAll('.nav button').forEach(b=>{
@@ -1287,6 +1458,22 @@
       img.src = r.result;
     };
     r.readAsDataURL(file);
+  }
+
+  /* ---------- lista de patrimônio ---------- */
+  const PT_TIPOS = ['Imóvel','Veículo','Dinheiro guardado','Investimentos','Outros'];
+  function renderPtList(){
+    $('ptList').innerHTML = ptItems.map((b,i)=>
+      '<div class="dvcard"><div class="dvhead"><span>Bem '+(i+1)+'</span>'+
+      (ptItems.length>1?'<button type="button" class="dvdel" data-i="'+i+'">remover</button>':'')+'</div>'+
+      '<select class="ptf" data-i="'+i+'" data-k="tipo">'+PT_TIPOS.map(t=>'<option'+(b.tipo===t?' selected':'')+'>'+t+'</option>').join('')+'</select>'+
+      '<input type="text" class="ptf" data-i="'+i+'" data-k="descricao" placeholder="Descrição (ex.: apartamento, moto Honda, poupança)" value="'+esc(b.descricao||'')+'">'+
+      '<div class="dvrow">'+
+        '<input type="number" class="ptf" data-i="'+i+'" data-k="valor" placeholder="Valor estimado (R$)" value="'+esc(String(b.valor||''))+'">'+
+        '<input type="number" class="ptf" data-i="'+i+'" data-k="deve" placeholder="Quanto ainda deve (R$)" value="'+esc(String(b.deve||''))+'">'+
+      '</div></div>').join('');
+    document.querySelectorAll('.ptf').forEach(el=> el.addEventListener('input', ()=>{ ptItems[+el.dataset.i][el.dataset.k] = el.value; }));
+    document.querySelectorAll('#ptList .dvdel').forEach(b=> b.onclick = ()=>{ ptItems.splice(+b.dataset.i,1); renderPtList(); });
   }
 
   /* ---------- lista de dívidas ---------- */
@@ -1388,6 +1575,10 @@
             '<a class="rg-link" href="https://www.bcb.gov.br/cidadaniafinanceira/registrato" target="_blank" rel="noopener">Abrir o Registrato agora ↗</a>'+
           '</div>'+
         '</div>';
+    } else if(mission.type === 'patrimonio'){
+      html = '<div class="hint">Liste o que é seu. Se um bem ainda está sendo pago (financiado), informe quanto você ainda deve nele.</div>'+
+        '<div id="ptList"></div>'+
+        '<button type="button" class="rowbtn" id="ptAdd" style="margin-top:8px">+ Adicionar bem</button>';
     } else {
       html = (mission.fields||[]).map(f=>{
         let input;
@@ -1399,7 +1590,7 @@
         return '<div class="row"><label for="f_'+f.id+'">'+esc(f.label)+'</label>'+input+'</div>';
       }).join('');
       // Orçamento: mostra entra/sai/saldo ao vivo, destacando o estouro.
-      if(mission.id === 'orc_montar'){
+      if(isBudget(mission.id)){
         html += '<div class="livebox" id="liveBox"></div>';
       }
       // Reserva: recomenda 3x as despesas do orçamento.
@@ -1430,18 +1621,23 @@
       const reused = [];
       const setIf = (fid, val)=>{ const el=$('f_'+fid); if(el && !el.value && val!=null && String(val)!=='' && Number(val)!==0){ el.value = Math.round(numBR(val)) || val; reused.push(fid); } };
 
-      if(mission.id === 'orc_montar'){
-        const diag = subData('diag_inicial');
-        if(diag) setIf('renda', diag.renda);
-        // Parcelas de dívida = soma das mensalidades já cadastradas nas dívidas
+      if(mission.id === 'orc_planejado'){
+        const prev = budgetLatest();
+        if(prev){ ['renda',...BCATS].forEach(k=> setIf(k, prev[k])); }
+        else { const diag = subData('diag_inicial'); if(diag) setIf('renda', diag.renda); }
         const somaParc = (state.dividas||[]).reduce((a,d)=> a + numBR(d.parcela), 0);
         if(somaParc > 0) setIf('parcelas', somaParc);
       }
+      if(mission.id === 'orc_realizado'){
+        // Parte do planejado do mês — a pessoa ajusta para o que realmente aconteceu.
+        const plan = budgetEntry('planejado', curMonth());
+        if(plan){ ['renda',...BCATS].forEach(k=> setIf(k, plan[k])); }
+      }
       if(mission.id === 'orc_metas'){
-        const orc = subData('orc_montar');
+        const orc = budgetLatest();
         if(orc){
           setIf('renda_futura', orc.renda);
-          const gastos = ['moradia','contas','alimentacao','transporte','parcelas','outros'].reduce((a,k)=> a + numBR(orc[k]), 0);
+          const gastos = BCATS.reduce((a,k)=> a + numBR(orc[k]), 0);
           if(gastos > 0) setIf('gastos_futuros', gastos);
         }
       }
@@ -1454,8 +1650,8 @@
     }
 
     // Orçamento ao vivo
-    if(mission.id === 'orc_montar'){
-      const cats = ['moradia','contas','alimentacao','transporte','parcelas','outros'];
+    if(isBudget(mission.id)){
+      const cats = BCATS;
       const nn = v => { const x = parseFloat(String(v||'').replace(',','.')); return isFinite(x)?x:0; };
       const upd = ()=>{
         const renda = nn(($('f_renda')||{}).value);
@@ -1476,11 +1672,11 @@
 
     // Reserva: calcula e recomenda 3x as despesas do orçamento
     if(mission.id === 'res_meta'){
-      const orc = (state.submissions||[]).find(s=>s.missionId==='orc_montar' && s.status==='aprovado');
+      const orc = budgetLatest();
       const nn = v => { const x = parseFloat(String(v||'').replace(',','.')); return isFinite(x)?x:0; };
       let recomendado = 0;
-      if(orc && orc.data){
-        const g = ['moradia','contas','alimentacao','transporte','parcelas','outros'].reduce((a,k)=>a+nn(orc.data[k]),0);
+      if(orc){
+        const g = BCATS.reduce((a,k)=>a+nn(orc[k]),0);
         recomendado = g * 3;
       }
       const brl = n => 'R$ ' + Number(n||0).toLocaleString('pt-BR');
@@ -1530,6 +1726,15 @@
     if(mission.type === 'proof'){
       $('drop').onclick = ()=> $('file').click();
       $('file').onchange = e => handleFile(e.target.files[0]);
+    }
+
+    // Patrimônio: lista dinâmica
+    if(mission.type === 'patrimonio'){
+      ptItems = (state.patrimonio && state.patrimonio.length)
+        ? state.patrimonio.map(b=>({ tipo:b.tipo||'Outros', descricao:b.descricao||'', valor:b.valor||'', deve:b.deve||'' }))
+        : [{ tipo:'Imóvel', descricao:'', valor:'', deve:'' }];
+      renderPtList();
+      $('ptAdd').onclick = ()=>{ if(ptItems.length<30){ ptItems.push({tipo:'Outros',descricao:'',valor:'',deve:''}); renderPtList(); } };
     }
   }
   $('mCancel').onclick = ()=>{ if(curLesson){ closeLesson(); } else { $('veil').classList.remove('on'); } };
@@ -1591,6 +1796,12 @@
         .filter(d=> d.descricao || d.parcela || d.parcelasRestantes);
       if(!limpas.length){ toast('Adicione ao menos uma dívida com a descrição.'); return; }
       data.dividas = limpas;
+    } else if(m.type === 'patrimonio'){
+      const limpos = ptItems
+        .map(b=>({ tipo:b.tipo||'Outros', descricao:(b.descricao||'').trim(), valor:b.valor, deve:b.deve }))
+        .filter(b=> b.descricao || b.valor);
+      if(!limpos.length){ toast('Adicione ao menos um bem com descrição ou valor.'); return; }
+      data.bens = limpos;
     } else {
       for(const f of (m.fields||[])){
         const el = $('f_'+f.id);
@@ -1607,21 +1818,20 @@
           ? { action:'missionEdit', missionId: editandoMissao, data }
           : { missionId: m.id, data, file, fileName };
       if(m.type === 'perfil' && perfilFoto) payload.foto = perfilFoto;
+      if(isBudget(m.id)) payload.mes = curMonth();
       const j = await api('/api/missions', { method:'POST', body: JSON.stringify(payload) });
 
       if(j.ok === false){ toast(j.message || 'Revise o preenchimento.'); return; }
 
       $('veil').classList.remove('on');
-      if(j.editado){ toast('Missão atualizada ✓'); }
+      if(j.orcamento){ showBudgetFeedback(j.orcamento, j.earned || 0, j.levelUp || null); }
+      else if(j.editado){ toast('Missão atualizada ✓'); }
       else if(j.pending){ toast(j.message); }
       else if(j.pontuou === false && j.message){ toast(j.message); }
       else if(j.objetivo){
         const editou = !!editandoObj;
         showObjectiveFeedback(j.objetivo, editou ? 0 : j.earned, editou ? null : (j.levelUp || null), editou);
         if(j.objetivo.pontuou !== false) lastObjData = null;
-      }
-      else if(j.orcamento){
-        showBudgetFeedback(j.orcamento, j.earned, j.levelUp || null);
       }
       else {
         let msg = '+' + j.earned + ' pontos!';
@@ -1632,7 +1842,7 @@
       if(j.moduleBonus){ setTimeout(()=> toast('🏅 Módulo '+j.moduleBonus.modulo+' completo! +'+j.moduleBonus.pontos+' pts de bônus'), 1400); }
       editandoObj = null; editandoMissao = null;
       state = await api('/api/missions');
-      renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes(); renderNews();
+      renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes(); renderNews(); renderDash(); renderDash();
     }catch(err){ toast(err.message); }
     finally{ $('mSend').disabled=false; $('mSend').textContent = m.type==='proof'?'Enviar comprovante':'Enviar'; }
   };
@@ -1775,7 +1985,7 @@
       toast('+' + j.earned + ' pontos!');
       if(j.levelUp) setTimeout(()=> celebrate(j.levelUp), 700);
       state = await api('/api/missions');
-      renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes(); renderNews();
+      renderHero(); renderMissions(); renderObjetivos(); renderFeitas(); renderPrizes(); renderNews(); renderDash();
       await loadLessons();
     }catch(err){ toast(err.message); $('mSend').disabled=false; $('mSend').textContent='Concluir aula'; }
   }
